@@ -53,6 +53,8 @@
             this.fileScan = new System.Windows.Forms.SaveFileDialog();
             this.folderMonthlyPath = new System.Windows.Forms.FolderBrowserDialog();
             this.btnVerifyDates = new System.Windows.Forms.Button();
+            this.btnConvertPdfToTiff = new System.Windows.Forms.Button();
+            this.fileOpenPdf = new System.Windows.Forms.OpenFileDialog();
             ((System.ComponentModel.ISupportInitialize)(this.picPagePreview)).BeginInit();
             this.pnlPageControls.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numSkipInterval)).BeginInit();
@@ -64,9 +66,9 @@
             // 
             this.btnScan.Location = new System.Drawing.Point(15, 12);
             this.btnScan.Name = "btnScan";
-            this.btnScan.Size = new System.Drawing.Size(312, 58);
+            this.btnScan.Size = new System.Drawing.Size(406, 58);
             this.btnScan.TabIndex = 0;
-            this.btnScan.Text = "Step 1) Scan Documents";
+            this.btnScan.Text = "Step 1a) Scan Documents into TIFF";
             this.btnScan.UseVisualStyleBackColor = true;
             this.btnScan.Click += new System.EventHandler(this.btnPerformScan);
             // 
@@ -300,7 +302,7 @@
             // 
             // btnVerifyDates
             // 
-            this.btnVerifyDates.Location = new System.Drawing.Point(621, 12);
+            this.btnVerifyDates.Location = new System.Drawing.Point(1053, 12);
             this.btnVerifyDates.Name = "btnVerifyDates";
             this.btnVerifyDates.Size = new System.Drawing.Size(364, 67);
             this.btnVerifyDates.TabIndex = 16;
@@ -308,11 +310,27 @@
             this.btnVerifyDates.UseVisualStyleBackColor = true;
             this.btnVerifyDates.Click += new System.EventHandler(this.btnVerifyDates_Click);
             // 
+            // btnConvertPdfToTiff
+            // 
+            this.btnConvertPdfToTiff.Location = new System.Drawing.Point(427, 12);
+            this.btnConvertPdfToTiff.Name = "btnConvertPdfToTiff";
+            this.btnConvertPdfToTiff.Size = new System.Drawing.Size(477, 57);
+            this.btnConvertPdfToTiff.TabIndex = 17;
+            this.btnConvertPdfToTiff.Text = "Step 1b) Convert PDF to Multi-page TIFF";
+            this.btnConvertPdfToTiff.UseVisualStyleBackColor = true;
+            this.btnConvertPdfToTiff.Click += new System.EventHandler(this.btnConvertPdfToTiff_Click);
+            // 
+            // fileOpenPdf
+            // 
+            this.fileOpenPdf.FileName = "openFileDialog1";
+            this.fileOpenPdf.Filter = "PDF Files|*.pdf";
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(2203, 1553);
+            this.Controls.Add(this.btnConvertPdfToTiff);
             this.Controls.Add(this.btnVerifyDates);
             this.Controls.Add(this.lblZoomTrackbar);
             this.Controls.Add(this.trackZoom);
@@ -368,6 +386,8 @@
         private System.Windows.Forms.NumericUpDown numSkipInterval;
         private System.Windows.Forms.Label lblSkipInterval;
         private System.Windows.Forms.Button btnVerifyDates;
+        private System.Windows.Forms.Button btnConvertPdfToTiff;
+        private System.Windows.Forms.OpenFileDialog fileOpenPdf;
     }
 }
 

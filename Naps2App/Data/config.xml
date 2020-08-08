@@ -122,6 +122,42 @@
       </Size>
       <Maximized>false</Maximized>
     </FormState>
+    <FormState>
+      <Name>FImageSettings</Name>
+      <Location>
+        <X>159</X>
+        <Y>278</Y>
+      </Location>
+      <Size>
+        <Width>0</Width>
+        <Height>0</Height>
+      </Size>
+      <Maximized>false</Maximized>
+    </FormState>
+    <FormState>
+      <Name>FViewer</Name>
+      <Location>
+        <X>0</X>
+        <Y>0</Y>
+      </Location>
+      <Size>
+        <Width>0</Width>
+        <Height>0</Height>
+      </Size>
+      <Maximized>true</Maximized>
+    </FormState>
+    <FormState>
+      <Name>FPdfSettings</Name>
+      <Location>
+        <X>0</X>
+        <Y>0</Y>
+      </Location>
+      <Size>
+        <Width>0</Width>
+        <Height>0</Height>
+      </Size>
+      <Maximized>false</Maximized>
+    </FormState>
   </FormStates>
   <BackgroundOperations>
     <string>OcrOperation</string>
@@ -134,6 +170,7 @@
   <OcrLanguageCode>eng</OcrLanguageCode>
   <OcrMode>Best</OcrMode>
   <OcrAfterScanning>true</OcrAfterScanning>
+  <LastImageExt>tiff</LastImageExt>
   <ThumbnailSize>128</ThumbnailSize>
   <DesktopToolStripDock>Top</DesktopToolStripDock>
   <CustomPageSizePresets />

@@ -4,6 +4,7 @@ using DocumentScanner.Properties;
 using iText.IO.Source;
 using iText.Kernel.Geom;
 using iText.Layout.Element;
+using iText.Signatures;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -49,6 +50,8 @@ namespace DocumentScanner
 
         private void picPagePreview_MouseDown(object sender, MouseEventArgs e)
         {
+            if (!CurrentPage.HasValue)
+                return;
             var imgSize = this.picPagePreview.Size;
             // Save coordinates as percentages of wifth and height.
             _zoomer.Location = new Point(
@@ -88,7 +91,7 @@ namespace DocumentScanner
 
         private void btnPerformScan(object sender, EventArgs e)
         {
-            if (!SetOutputPath(out var outputPath))
+            if (!SetSaveFilePath(this.fileScan, out var outputPath))
                 return;
 
             var result = _scanCreator
@@ -114,54 +117,50 @@ namespace DocumentScanner
 
             MessageBox.Show(output);
             SelectFileInExplorer(Settings.Default.LastAccessedDirectory);
-
-            // return true to continue with the scanning operation, false to abort
-            bool SetOutputPath(out string path)
-            {
-                this.fileScan.InitialDirectory = Settings.Default.LastAccessedDirectory;
-                path = DialogResult.OK == this.fileScan.ShowDialog()
-                        ? this.fileScan.FileName
-                        : null;
-
-                if (path == null)
-                    return false;
-
-                Settings.Default.LastAccessedDirectory = Path.GetDirectoryName(path);
-                Settings.Default.Save();
-
-                return !File.Exists(path) || ConfirmOverwrite(ref path);
-            }
-
-            // return true to continue with the scanning operation, false to abort
-            bool ConfirmOverwrite(ref string existingFile)
-            {
-                var response = MessageBox.Show(
-                    this,
-                    "Select Abort to cancel this operation, Retry to choose another path, or Ignore to overwrite the file.",
-                    "The selected file already exists",
-                    MessageBoxButtons.AbortRetryIgnore);
-
-                if (response == DialogResult.Abort)
-                    return false;
-
-                if (response == DialogResult.Retry)
-                    return SetOutputPath(out existingFile);
-
-                try
-                {
-                    File.Delete(existingFile);
-                    return true;
-                }
-                catch (Exception ex)
-                {
-                    MessageBox.Show("Could not delete the file: " + ex.Message, "Error");
-                    return false;
-                }
-            }
         }
 
-        private void button2_Click(object sender, EventArgs e)
+        // return true to continue with the scanning operation, false to abort
+        private bool SetSaveFilePath(SaveFileDialog dialog, out string path)
         {
+            this.fileScan.InitialDirectory = Settings.Default.LastAccessedDirectory;
+            path = DialogResult.OK == dialog.ShowDialog()
+                    ? dialog.FileName
+                    : null;
+
+            if (path == null)
+                return false;
+
+            Settings.Default.LastAccessedDirectory = Path.GetDirectoryName(path);
+            Settings.Default.Save();
+
+            return !File.Exists(path) || ConfirmOverwrite(dialog, ref path);
+        }
+
+        // return true to continue with the scanning operation, false to abort
+        private bool ConfirmOverwrite(SaveFileDialog dialog, ref string existingFile)
+        {
+            var response = MessageBox.Show(
+                this,
+                "Select Abort to cancel this operation, Retry to choose another path, or Ignore to overwrite the file.",
+                "The selected file already exists",
+                MessageBoxButtons.AbortRetryIgnore);
+
+            if (response == DialogResult.Abort)
+                return false;
+
+            if (response == DialogResult.Retry)
+                return SetSaveFilePath(dialog, out existingFile);
+
+            try
+            {
+                File.Delete(existingFile);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show("Could not delete the file: " + ex.Message, "Error");
+                return false;
+            }
         }
 
         private readonly RangedList<DateTime> _statementDates =
@@ -261,29 +260,9 @@ namespace DocumentScanner
             }
         }
 
-        private string SelectImagePath()
-        {
-            var lastDir = Settings.Default.LastAccessedDirectory;
-            if (Directory.Exists(lastDir))
-            {
-                this.fileOpenImage.InitialDirectory = lastDir;
-            }
-
-            return DialogResult.OK == this.fileOpenImage.ShowDialog()
-                ? this.fileOpenImage.FileName
-                : null;
-        }
-
         private void SelectImage()
         {
-            var path = SelectImagePath();
-            if (!File.Exists(path))
-            {
-                return;
-            }
-
-            Settings.Default.LastAccessedDirectory = Path.GetDirectoryName(path);
-            Settings.Default.Save();
+            SetOpenFilePath(this.fileOpenImage, out var path);
             DisplayImage(path);
         }
 
@@ -293,9 +272,7 @@ namespace DocumentScanner
         private void DisplayImage(string path)
         {
             _previewImagePath = path;
-
-            PreviewImage = System.Drawing.Image.FromFile(path);
-
+            PreviewImage = Image.FromFile(path);
             CurrentPage = 0;
         }
 
@@ -438,6 +415,53 @@ namespace DocumentScanner
 
             // Refresh
             CurrentPage = CurrentPage;
+        }
+
+        private bool SetOpenFilePath(OpenFileDialog dialog, out string path)
+        {
+            dialog.InitialDirectory = Settings.Default.LastAccessedDirectory;
+            if (DialogResult.OK != dialog.ShowDialog())
+            {
+                path = null;
+                return false;
+            }
+
+            path = dialog.FileName;
+
+            if (!File.Exists(path))
+            {
+                MessageBox.Show(
+                    "File does not exist.",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+                path = null;
+                return false;
+            }
+
+            Settings.Default.LastAccessedDirectory = Path.GetDirectoryName(path);
+            Settings.Default.Save();
+
+            return true;
+        }
+
+        private void btnConvertPdfToTiff_Click(object sender, EventArgs e)
+        {
+            if (!SetOpenFilePath(this.fileOpenPdf, out var inputPdf))
+                return;
+
+            if (!SetSaveFilePath(this.fileScan, out var outputPath))
+                return;
+
+            _scanCreator.Create()
+                .AddInputFiles(new InputFile(inputPdf))
+                .TiffCompression(TiffCompressionType.Auto)
+                .ForceOverwrite()
+                .NumScans(0)
+                .OutputPath(outputPath)
+                .Execute();
+
+            DisplayImage(outputPath);
         }
     }
 
