@@ -14,9 +14,10 @@ namespace DocumentScanner
         private int _level = 100;
         public Size DestSize { get; set; } = new Size(100, 100);
 
-        public ImageZoomer(Image sourceImage)
+        public ImageZoomer(Image sourceImage, string path)
         {
-            this.SourceImage = sourceImage;
+            SourceImage = sourceImage;
+            Path = path;
         }
 
         public int Level
@@ -37,10 +38,11 @@ namespace DocumentScanner
 
         public Point Location { get; set; } = Point.Empty;
         public Image SourceImage { get; set; }
+        public string Path { get; }
 
-        public ImageZoomer Clone(Image newImage = null)
+        public ImageZoomer Clone()
         {
-            return new ImageZoomer(newImage ?? SourceImage)
+            return new ImageZoomer((Image)SourceImage.Clone(), Path)
             {
                 Location = Location,
                 Level = Level,

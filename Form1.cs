@@ -1,31 +1,18 @@
 ﻿using DocumentScanner.NapsOptions;
-using DocumentScanner.PdfProcessing;
 using DocumentScanner.Properties;
-using iText.IO.Source;
-using iText.Kernel.Geom;
-using iText.Layout.Element;
-using iText.Signatures;
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
-using System.Drawing.Design;
-using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
-using System.Net.NetworkInformation;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography.X509Certificates;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
-using System.Windows.Forms.VisualStyles;
 using Image = System.Drawing.Image;
 using Path = System.IO.Path;
 using Point = System.Drawing.Point;
-using Rectangle = System.Drawing.Rectangle;
 
 namespace DocumentScanner
 {
@@ -174,20 +161,22 @@ namespace DocumentScanner
         private readonly List<KeyValuePair<int, DateTime>> StatementDates =
             new List<KeyValuePair<int, DateTime>>();
 
-        private System.Drawing.Image PreviewImage
+        private Image PreviewImage => this.picPagePreview.Image;
+
+        private void SetPreviewImagePath(string path)
         {
-            get => this.picPagePreview.Image;
-            set
+            if (!File.Exists(path))
+                throw new FileNotFoundException("Image file doesn't exist.", path);
+
+            StatementDates.Clear();
+            _previewImagePath = path;
+            this.picPagePreview.Image = Image.FromFile(path);
+            _zoomer = new ImageZoomer(this.picPagePreview.Image, path)
             {
-                StatementDates.Clear();
-                this.picPagePreview.Image = value;
-                _zoomer = new ImageZoomer(value)
-                {
-                    DestSize = this.picZoom.ClientSize,
-                    Level = this.trackZoom.Value,
-                };
-                CurrentPage = 0;
-            }
+                DestSize = this.picZoom.ClientSize,
+                Level = this.trackZoom.Value,
+            };
+            CurrentPage = 0;
         }
 
         /// <summary>
@@ -262,19 +251,12 @@ namespace DocumentScanner
 
         private void SelectImage()
         {
-            SetOpenFilePath(this.fileOpenImage, out var path);
-            DisplayImage(path);
+            if (SetOpenFilePath(this.fileOpenImage, out var path))
+                SetPreviewImagePath(path);
         }
 
         private string _previewImagePath;
         private ImageZoomer _zoomer;
-
-        private void DisplayImage(string path)
-        {
-            _previewImagePath = path;
-            PreviewImage = Image.FromFile(path);
-            CurrentPage = 0;
-        }
 
         private void btnLoadTiff_Click(object sender, EventArgs e)
         {
@@ -390,6 +372,9 @@ namespace DocumentScanner
 
         private void btnVerifyDates_Click(object sender, EventArgs e)
         {
+            if (PreviewImage == null)
+                return;
+
             if (DialogResult.OK != MessageBox.Show(
                 "Don't forget to set the zoom level and location as well as the page skip interval.",
                 "Reminder",
@@ -402,14 +387,14 @@ namespace DocumentScanner
             }
 
             using (Image imgCopy = (Image)PreviewImage.Clone())
+            using (var frm = new frmVerification()
             {
-                var frm = new frmVerification()
-                {
-                    PageSkip = (int)this.numSkipInterval.Value,
-                    DateFormatter = _dateFormatter,
-                    DocDates = _statementDates,
-                    Zoomer = _zoomer.Clone(imgCopy)
-                };
+                PageSkip = (int)this.numSkipInterval.Value,
+                DateFormatter = _dateFormatter,
+                DocDates = _statementDates,
+                Zoomer = _zoomer.Clone()
+            })
+            {
                 frm.ShowDialog(this);
             }
 
@@ -461,11 +446,11 @@ namespace DocumentScanner
                 .OutputPath(outputPath)
                 .Execute();
 
-            DisplayImage(outputPath);
+            SetPreviewImagePath(outputPath);
         }
     }
 
-    internal sealed class DateFormatter
+    public sealed class DateFormatter
     {
         public event EventHandler FormatChanged;
 
@@ -505,7 +490,7 @@ namespace DocumentScanner
         public string Format(DateTime date) => date.ToString(CurrentFormat);
     }
 
-    internal class Range
+    public class Range
     {
         public int Min { get; set; }
         public int Max { get; set; }
@@ -515,19 +500,23 @@ namespace DocumentScanner
     /// Stores objects with integer indexes. Retrieves the highest keyed value below a specified index key.
     /// </summary>
     /// <typeparam name="T"></typeparam>
-    internal class RangedList<T> : IEnumerable<KeyValuePair<int, T>>
+    [JsonObject(MemberSerialization.OptIn)]
+    public class RangedList<T> : IEnumerable<KeyValuePair<int, T>>
     {
         /// <summary>
         /// The value to use for each index in [0, first set index).
         /// </summary>
+        [JsonProperty()]
         private readonly T _defaultValue;
 
+        [JsonProperty()]
         private readonly SortedList<int, T> _values = new SortedList<int, T>();
 
         /// <summary>
         /// Avoid scenario where [index=0]->1, [2]->2, [1]->1.
         /// The final [1]->1 is ignored since its value is already implicitly 1.
         /// </summary>
+        [JsonProperty()]
         private readonly bool _avoidRedundancy;
 
         /// <summary>

@@ -3,8 +3,10 @@ using System.Collections.Generic;
 using System.Data;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Drawing.Printing;
 using System.Drawing.Text;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 
 namespace DocumentScanner
@@ -84,8 +86,9 @@ namespace DocumentScanner
                     Image = Zoomer.Zoom(idx),
                     Size = Zoomer.DestSize,
                     SizeMode = PictureBoxSizeMode.CenterImage,
+                    Tag = row,
                 };
-                // Add these last for responsiveness
+                picDoc.DoubleClick += PicDoc_DoubleClick;
                 this.tableContainer.Controls.Add(picDoc, 0, currentRow);
 
                 var pnlControl = new FlowLayoutPanel()
@@ -118,7 +121,9 @@ namespace DocumentScanner
                     if (e.Button == MouseButtons.Right)
                         DateFormatter.Toggle();
                 };
-                this.tableContainer.Controls.Add(row.DatePicker, 2, currentRow);
+                pnlControl.Controls.Add(row.DatePicker);
+
+                //this.tableContainer.Controls.Add(row.DatePicker, 2, currentRow);
 
                 row.Refresh();
                 currentRow++;
@@ -126,6 +131,35 @@ namespace DocumentScanner
             }
             this.lblLoading.Visible = false;
             this.tableContainer.Visible = true;
+        }
+
+        private void PicDoc_DoubleClick(object sender, EventArgs e)
+        {
+            var pic = sender as PictureBox;
+            var row = pic.Tag as RowData;
+
+            var lbl = new Label()
+            {
+                Text = "Currently Viewing",
+                ForeColor = Color.DarkRed,
+                Font = new Font(FontFamily.GenericSansSerif, 14f, FontStyle.Bold, GraphicsUnit.Point),
+                AutoSize = true,
+            };
+            row.DatePicker.Parent.Controls.Add(lbl);
+
+            var frm = new frmImageViewer(Zoomer.Path, row.Index);
+
+            async void RemoveIndicator(object s, EventArgs args)
+            {
+                await Task.Delay(3000);
+                lbl.Parent.Controls.Remove(lbl);
+                lbl.Dispose();
+                frm.FormClosed -= RemoveIndicator;
+            }
+
+            frm.FormClosed += RemoveIndicator;
+
+            frm.Show();
         }
 
         private class RowData
