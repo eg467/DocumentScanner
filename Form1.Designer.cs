@@ -38,6 +38,7 @@
             this.btnConvertPdfToTiff = new System.Windows.Forms.ToolStripMenuItem();
             this.btnLoadTiff = new System.Windows.Forms.ToolStripMenuItem();
             this.btnLoadProject = new System.Windows.Forms.ToolStripMenuItem();
+            this.btnBatchScan = new System.Windows.Forms.ToolStripMenuItem();
             this.btnStep2ProcessDates = new System.Windows.Forms.ToolStripMenuItem();
             this.btnBatchDateProcessing = new System.Windows.Forms.ToolStripMenuItem();
             this.individualPagedProcessingToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -47,8 +48,8 @@
             this.btnConfigureZoom = new System.Windows.Forms.ToolStripMenuItem();
             this.btnSetDateFormat = new System.Windows.Forms.ToolStripMenuItem();
             this.comboDateFormats = new System.Windows.Forms.ToolStripComboBox();
-            this.pnlMainContainer = new System.Windows.Forms.Panel();
             this.btnTestZoom = new System.Windows.Forms.ToolStripMenuItem();
+            this.pnlMainContainer = new System.Windows.Forms.Panel();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -68,7 +69,6 @@
             // 
             // menuStrip1
             // 
-            this.menuStrip1.GripMargin = new System.Windows.Forms.Padding(2, 2, 0, 2);
             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnStep1ScanImage,
@@ -87,7 +87,8 @@
             this.btnScanToTiff,
             this.btnConvertPdfToTiff,
             this.btnLoadTiff,
-            this.btnLoadProject});
+            this.btnLoadProject,
+            this.btnBatchScan});
             this.btnStep1ScanImage.Name = "btnStep1ScanImage";
             this.btnStep1ScanImage.Size = new System.Drawing.Size(320, 34);
             this.btnStep1ScanImage.Text = "Step 1) Scan or Convert Images";
@@ -119,6 +120,13 @@
             this.btnLoadProject.Size = new System.Drawing.Size(501, 40);
             this.btnLoadProject.Text = "Load an existing project";
             this.btnLoadProject.Click += new System.EventHandler(this.btnLoadProject_Click);
+            // 
+            // btnBatchScan
+            // 
+            this.btnBatchScan.Name = "btnBatchScan";
+            this.btnBatchScan.Size = new System.Drawing.Size(501, 40);
+            this.btnBatchScan.Text = "Batch Scan";
+            this.btnBatchScan.Click += new System.EventHandler(this.btnBatchScan_Click);
             // 
             // btnStep2ProcessDates
             // 
@@ -182,9 +190,18 @@
             // 
             // comboDateFormats
             // 
+            this.comboDateFormats.AutoSize = false;
+            this.comboDateFormats.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.comboDateFormats.Name = "comboDateFormats";
-            this.comboDateFormats.Size = new System.Drawing.Size(121, 38);
-            this.comboDateFormats.Click += new System.EventHandler(this.comboDateFormats_Click);
+            this.comboDateFormats.Size = new System.Drawing.Size(300, 38);
+            this.comboDateFormats.SelectedIndexChanged += new System.EventHandler(this.comboDateFormats_SelectedIndexChanged);
+            // 
+            // btnTestZoom
+            // 
+            this.btnTestZoom.Name = "btnTestZoom";
+            this.btnTestZoom.Size = new System.Drawing.Size(315, 40);
+            this.btnTestZoom.Text = "Test Zoom";
+            this.btnTestZoom.Click += new System.EventHandler(this.btnTestZoom_Click);
             // 
             // pnlMainContainer
             // 
@@ -193,13 +210,6 @@
             this.pnlMainContainer.Name = "pnlMainContainer";
             this.pnlMainContainer.Size = new System.Drawing.Size(2203, 1515);
             this.pnlMainContainer.TabIndex = 19;
-            // 
-            // btnTestZoom
-            // 
-            this.btnTestZoom.Name = "btnTestZoom";
-            this.btnTestZoom.Size = new System.Drawing.Size(315, 40);
-            this.btnTestZoom.Text = "Test Zoom";
-            this.btnTestZoom.Click += new System.EventHandler(this.btnTestZoom_Click);
             // 
             // Form1
             // 
@@ -241,6 +251,7 @@
         private System.Windows.Forms.ToolStripComboBox comboDateFormats;
         private System.Windows.Forms.Panel pnlMainContainer;
         private System.Windows.Forms.ToolStripMenuItem btnTestZoom;
+        private System.Windows.Forms.ToolStripMenuItem btnBatchScan;
     }
 }
 

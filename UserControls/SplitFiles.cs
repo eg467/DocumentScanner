@@ -67,18 +67,9 @@ namespace DocumentScanner.UserControls
             InputFile GetFileSlice((int min, int? max) r) =>
                 new InputFile(_docData.ImagePath, r.min, r.max);
 
-            string SanitizeFilename(string filename)
-            {
-                var sanitized = filename;
-                Path.GetInvalidFileNameChars()
-                    .ToList()
-                    .ForEach(c => sanitized = sanitized.Replace(c, '-'));
-                return sanitized;
-            }
-
             string CreateOutputPath(DateTime? stmtDate)
             {
-                var sanitizedFilename = SanitizeFilename(this.txtBaseFileName.Text);
+                var sanitizedFilename = this.txtBaseFileName.Text.SanitizeFilename();
                 var dateLabel = stmtDate?.ToString("yyyy-MM-dd") ?? "-undated";
                 return Path.Combine(dir, $@"{sanitizedFilename}-{dateLabel}-$(nnn).pdf");
             }

@@ -18,9 +18,9 @@ namespace DocumentScanner
 
         public DateFormatter() : this(new string[]
             {
-                "MMM dd yyyy",
                 "MM/dd/yyyy",
-                "MMMM dd, yyyy"
+                "MMM dd yyyy",
+                "MMMM dd, yyyy",
             })
         {
         }
@@ -65,6 +65,9 @@ namespace DocumentScanner
 
         public string CurrentFormat => _formats[CurrentIndex];
 
-        public string Format(DateTime date) => date.ToString(CurrentFormat);
+        public string Format(DateTime? date) =>
+            date.HasValue
+            ? date.Value.ToString(CurrentFormat)
+            : "undated";
     }
 }

@@ -5,6 +5,7 @@ using iText.Layout;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
@@ -25,6 +26,8 @@ namespace DocumentScanner
         private SerializedMetadata _docProject;
         private DocumentMetadata _docMetadata => _docProject.Data;
 
+        private DateFormatter _dateFormatter = new DateFormatter();
+
         public Form1()
         {
             InitializeComponent();
@@ -43,19 +46,16 @@ namespace DocumentScanner
             {
                 btnStep2ProcessDates,
                 btnStep3SplitToPdf,
-                btnSetDateFormat,
                 btnConfigureZoom,
-                comboDateFormats
             };
             projectDependentControls.ForEach(c => c.Enabled = _docProject != null);
 
             this.comboDateFormats.Items.Clear();
-            if (_docProject == null) return;
-            var formats = _docMetadata.DateFormatter.Formats
+            var formats = _dateFormatter.Formats
                 .Select((x, i) => new DateFormatSample(x))
                 .ToArray();
             this.comboDateFormats.Items.AddRange(formats);
-            this.comboDateFormats.SelectedIndex = _docMetadata.DateFormatter.CurrentIndex;
+            this.comboDateFormats.SelectedIndex = _dateFormatter.CurrentIndex;
         }
 
         private class DateFormatSample
@@ -73,61 +73,9 @@ namespace DocumentScanner
         private void LoadProject(SerializedMetadata docProject)
         {
             _docProject = docProject;
+            _dateFormatter = docProject.Data.DateFormatter;
             UpdateMenuButtons();
         }
-
-        //private void btnSplitFiles_Click(object sender, EventArgs e)
-        //{
-        //    if (DialogResult.Cancel == this.folderMonthlyPath.ShowDialog())
-        //    {
-        //        return;
-        //    }
-
-        //    var dir = this.folderMonthlyPath.SelectedPath;
-
-        //    var sanitizedFilename = this.txtBaseFileName.Text;
-        //    Path.GetInvalidFileNameChars()
-        //        .ToList()
-        //        .ForEach(c => sanitizedFilename = sanitizedFilename.Replace(c, '-'));
-
-        //    var operationStart = DateTime.Now;
-        //    string CreateOutputPath(DateTime? stmtDate)
-        //    {
-        //        var dateLabel = stmtDate?.ToString("yyyy-MM-dd") ?? "-undated";
-        //        return Path.Combine(dir, $@"{sanitizedFilename}-{dateLabel}-$(nnn).pdf");
-        //    }
-
-        //    using (var img = _docData.CreateImage())
-        //    {
-        //        InputFile GetFileSlice(Range r) =>
-        //            new InputFile(_docData.ImagePath, r.Min, r.Max);
-
-        //        var pageCount = img.GetFrameCount(FrameDimension.Page);
-
-        //        _docData.PageDates
-        //            .GetRanges(0, pageCount - 1)
-        //            .ToList()
-        //            .ForEach(r =>
-        //            {
-        //                _scanCreator
-        //                .Create()
-        //                .AddInputFiles(r.Value.Select(GetFileSlice))
-        //                .OutputPath(CreateOutputPath(r.Key))
-        //                .PdfSettings(new PdfSettings
-        //                {
-        //                    Author = Environment.UserName,
-        //                    Title = this.txtBaseFileName.Text,
-        //                    Subject = $"Document Dated: {r.Key?.Date.ToString() ?? "undated"}"
-        //                })
-        //                .NumScans(0)
-        //                .ForceOverwrite()
-        //                .Execute();
-        //            });
-        //    }
-
-        //    MessageBox.Show("The documents have been successfully split by date.");
-        //    new FileInfo(dir).ShowInExplorer();
-        //}
 
         private void btnScanToTiff_Click(object sender, EventArgs e)
         {
@@ -184,12 +132,6 @@ namespace DocumentScanner
                 var doc = _docSerializer.LoadOrCreate(projectPath);
                 LoadProject(doc);
             }
-        }
-
-        private void comboDateFormats_Click(object sender, EventArgs e)
-        {
-            _docMetadata.DateFormatter.CurrentIndex =
-                Math.Max(0, this.comboDateFormats.SelectedIndex);
         }
 
         private OpenFileDialog CreateOpenFileDialog(string filter = null, string initialDirectory = null)
@@ -250,6 +192,19 @@ namespace DocumentScanner
                 .NumScans(0)
                 .OutputPath(outputPath)
                 .Execute();
+        }
+
+        private void btnBatchScan_Click(object sender, EventArgs e)
+        {
+            var ctl = new BatchScan(_scanCreator, _dateFormatter);
+            SetMainControl(ctl);
+        }
+
+        private void comboDateFormats_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            var newIndex = Math.Max(0, this.comboDateFormats.SelectedIndex);
+            Debug.WriteLine($"Date Formatter went from {_dateFormatter.CurrentIndex} to {newIndex}");
+            _dateFormatter.CurrentIndex = newIndex;
         }
     }
 }

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Windows.Forms;
 
@@ -18,6 +19,26 @@ namespace DocumentScanner
         public string Error { get; }
         public int ExitCode { get; }
         public bool Success => ExitCode == 0;
+
+        public IEnumerable<string> OutputFiles
+        {
+            get
+            {
+                var filePattern = @"^(?:Finished saving images to ([^$]+)|Successfully saved \w+ file to ([^$]+))$";
+                var matches = Regex.Matches(
+                    Output ?? "",
+                    filePattern,
+                    RegexOptions.IgnoreCase | RegexOptions.Multiline);
+
+                return matches
+                    .Cast<Match>()
+                    .Select(m =>
+                    {
+                        var savedPath = m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value;
+                        return savedPath.Trim('\r', '\n');
+                    });
+            }
+        }
 
         public ScanResults(Process process)
         {
@@ -215,6 +236,11 @@ namespace DocumentScanner
         {
             var methodArg = method.ToString().ToLower();
             return AddStringOption(Quality.TiffCompression, methodArg, false);
+        }
+
+        public Naps2ScanJob WaitForUserInput()
+        {
+            return AddBooleanOption(Main.Wait);
         }
 
         public Naps2ScanJob Interleave()

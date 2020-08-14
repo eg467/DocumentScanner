@@ -478,7 +478,7 @@ namespace DocumentScanner.UserControls
             }
 
             string confirmationMsg = $"Auto increment all pages starting with {(currentDate.HasValue ? currentDate.Value.ToString("d") : "<Undated>")} at page {firstPage}";
-            if (!Confirm(confirmationMsg)) return;
+            if (!FileExtensions.ConfirmAction(confirmationMsg)) return;
 
             var affectedRows = Rows.Values.Where(x => x.Index >= firstPage);
             foreach (RowData r in affectedRows)
@@ -491,13 +491,6 @@ namespace DocumentScanner.UserControls
             this.rbIncrementAllSubsequentPages.Checked = true;
             await SaveAsync();
         }
-
-        private static bool Confirm(string action) =>
-            DialogResult.OK ==
-            MessageBox.Show(
-                $"Are you sure you want to do the following:\r\n{action}",
-                "Confirm Action",
-                MessageBoxButtons.OKCancel);
 
         private async void btnRefresh_Click(object sender, EventArgs e)
         {
@@ -520,6 +513,19 @@ namespace DocumentScanner.UserControls
     {
         public static DateTime? GetDate(this DateTimePicker picker) =>
             picker.Checked ? picker.Value : (DateTime?)null;
+
+        public static void SetDate(this DateTimePicker picker, DateTime? date)
+        {
+            if (date.HasValue)
+            {
+                picker.Value = date.Value;
+                picker.Checked = true;
+            }
+            else
+            {
+                picker.Checked = false;
+            }
+        }
 
         public static DateTime? Increment(
             this DateIncrementSelector selector,

@@ -19,6 +19,24 @@ namespace DocumentScanner
             Process.Start("explorer.exe", argument);
         }
 
+        public static bool ConfirmAction(string action) =>
+    DialogResult.OK ==
+    MessageBox.Show(
+        $"Are you sure you want to do the following:\r\n{action}",
+        "Confirm Action",
+        MessageBoxButtons.OKCancel);
+
+        public static string SanitizeFilename(this string filename)
+        {
+            var sanitizedFilename = filename;
+            var illegalChars = Path.GetInvalidFileNameChars().Select(c => c.ToString());
+            foreach (string c in illegalChars)
+            {
+                sanitizedFilename = sanitizedFilename.Replace(c, "");
+            }
+            return sanitizedFilename;
+        }
+
         public static void RecursiveDelete(this DirectoryInfo baseDir)
         {
             var exceptions = new List<Exception>();

@@ -16,6 +16,7 @@ namespace DocumentScanner.NapsOptions.Keys
         public const string NumScans = "-n";
         public const string Delay = "-d";
         public const string ForceOverwrite = "--force";
+        public const string Wait = "--wait";
 
         /// <summary>
         ///  Installs the specified component. Possible values: "genericimport", "ocr-eng" (and other language codes - see reference)
