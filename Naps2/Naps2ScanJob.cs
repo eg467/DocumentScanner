@@ -40,10 +40,10 @@ namespace DocumentScanner
             }
         }
 
-        public ScanResults(Process process)
+        public ScanResults(Process process, bool redirected)
         {
-            Output = process.StandardOutput.ReadToEnd();
-            Error = process.StandardError.ReadToEnd();
+            Output = redirected ? process.StandardOutput.ReadToEnd() : "";
+            Error = redirected ? process.StandardError.ReadToEnd() : "";
             ExitCode = process.ExitCode;
         }
 
@@ -79,6 +79,8 @@ namespace DocumentScanner
 
         public readonly NapsOptionCollection Args = new NapsOptionCollection();
 
+        private bool _redirectOutput = true;
+
         public Naps2ScanJob(string path)
         {
             NapsConsolePath = path;
@@ -91,15 +93,16 @@ namespace DocumentScanner
             Debug.WriteLine($"Running NAPS2 with process arguments: {CliArgs}");
             var startInfo = new ProcessStartInfo(NapsConsolePath, CliArgs)
             {
-                WindowStyle = ProcessWindowStyle.Hidden,
-                CreateNoWindow = false,
-                UseShellExecute = false,
-                RedirectStandardError = true,
-                RedirectStandardOutput = true
+                WindowStyle = _redirectOutput ? ProcessWindowStyle.Hidden : ProcessWindowStyle.Normal,
+                CreateNoWindow = _redirectOutput,
+                UseShellExecute = !_redirectOutput,
+                RedirectStandardError = _redirectOutput,
+                RedirectStandardOutput = _redirectOutput
             };
 
             var process = Process.Start(startInfo);
-            var results = new ScanResults(process);
+            process.WaitForExit();
+            var results = new ScanResults(process, _redirectOutput);
             return results;
         }
 
@@ -115,6 +118,12 @@ namespace DocumentScanner
             catch (PathTooLongException) { }
             catch (NotSupportedException) { }
             return !ReferenceEquals(fi, null);
+        }
+
+        public Naps2ScanJob ShowOutput()
+        {
+            _redirectOutput = false;
+            return this;
         }
 
         public Naps2ScanJob OutputPath(string path)

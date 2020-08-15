@@ -12,6 +12,7 @@ using System.Threading;
 using Timer = System.Windows.Forms.Timer;
 using System.Diagnostics;
 using System.Reflection;
+using DocumentScanner.NapsOptions.Keys;
 
 namespace DocumentScanner.UserControls
 {
@@ -21,6 +22,7 @@ namespace DocumentScanner.UserControls
         private readonly IDocumentSaver _saver;
         private readonly Image _baseImage;
         private readonly PreviewImageCreator _imageCreator;
+        private readonly IPdfMerger _pdfMerger;
 
         public BatchPageProcessing()
         {
@@ -30,13 +32,15 @@ namespace DocumentScanner.UserControls
         public BatchPageProcessing(
             DocumentMetadata docData,
             IDocumentSaver saver,
-            PreviewImageCreator imageCreator = null) : this()
+            PreviewImageCreator imageCreator = null,
+            IPdfMerger pdfMerger = null) : this()
         {
             _docData = docData;
             _saver = saver;
             _baseImage = _docData.CreateImage();
             _imageCreator = imageCreator ?? new PreviewImageCreator();
             _docData.DateFormatter.FormatChanged += UpdateAllDateLabels;
+            _pdfMerger = pdfMerger ?? new ItextPdfMerger();
 
             this.numSkipInterval.Value = _docData.PageSkipInterval;
         }
@@ -235,14 +239,14 @@ namespace DocumentScanner.UserControls
                     Text = "◀ Decrement",
                     AutoSize = true,
                 };
-                btnDecrement.Click += async (s, e) => await Increment(row, this.incselAutoIncrement.Decrement);
+                btnDecrement.Click += async (s, e) => await Increment(row, this.incselManual.Decrement);
 
                 var btnIncrement = new Button()
                 {
                     Text = "Increment ▶",
                     AutoSize = true,
                 };
-                btnIncrement.Click += async (s, e) => await Increment(row, this.incselAutoIncrement.Increment);
+                btnIncrement.Click += async (s, e) => await Increment(row, this.incselManual.Increment);
 
                 var pnlIncrement = new FlowLayoutPanel()
                 {
@@ -314,10 +318,7 @@ namespace DocumentScanner.UserControls
                 .Select(x => Rows[x.Key])
                 .ToList();
 
-            foreach (RowData r in rows)
-            {
-                IncrementImplicitlyConnected(r, incrementer);
-            }
+            rows.ForEach(r => IncrementImplicitlyConnected(r, incrementer));
         }
 
         /// <summary>
@@ -333,7 +334,7 @@ namespace DocumentScanner.UserControls
             row.Date = row.Date.HasValue ? incrementer(row.Date.Value) : null;
             _docData.PageDates[row.Index] = row.Date;
             (int start, int? end) = _docData.PageDates.BinaryRangeSearch(row.Index);
-            RefreshRowUi(start, end ?? Rows.Last().Key);
+            RefreshRowUi(start, end ?? Rows.Keys.Max());
         }
 
         private async Task SaveAsync()
@@ -458,6 +459,7 @@ namespace DocumentScanner.UserControls
         private void ProgrammaticallyRefreshRow(RowData row)
         {
             _isPopulating = true;
+            row.Date = _docData.PageDates[row.Index];
             row.Refresh();
             _isPopulating = false;
         }
@@ -507,34 +509,5 @@ namespace DocumentScanner.UserControls
         {
             var x = _docData.PageDates;
         }
-    }
-
-    public static class ClassExtensions
-    {
-        public static DateTime? GetDate(this DateTimePicker picker) =>
-            picker.Checked ? picker.Value : (DateTime?)null;
-
-        public static void SetDate(this DateTimePicker picker, DateTime? date)
-        {
-            if (date.HasValue)
-            {
-                picker.Value = date.Value;
-                picker.Checked = true;
-            }
-            else
-            {
-                picker.Checked = false;
-            }
-        }
-
-        public static DateTime? Increment(
-            this DateIncrementSelector selector,
-            DateTime? start) =>
-            start.HasValue ? selector.Increment(start.Value) : (DateTime?)null;
-
-        public static DateTime? Decrement(
-            this DateIncrementSelector selector,
-            DateTime? start) =>
-            start.HasValue ? selector.Decrement(start.Value) : (DateTime?)null;
     }
 }

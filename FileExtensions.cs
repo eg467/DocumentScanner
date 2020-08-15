@@ -1,4 +1,5 @@
 ﻿using DocumentScanner.Properties;
+using DocumentScanner.UserControls;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -30,10 +31,7 @@ namespace DocumentScanner
         {
             var sanitizedFilename = filename;
             var illegalChars = Path.GetInvalidFileNameChars().Select(c => c.ToString());
-            foreach (string c in illegalChars)
-            {
-                sanitizedFilename = sanitizedFilename.Replace(c, "");
-            }
+            illegalChars.ForEach(c => sanitizedFilename = sanitizedFilename.Replace(c, ""));
             return sanitizedFilename;
         }
 
@@ -54,10 +52,8 @@ namespace DocumentScanner
             if (!baseDir.Exists)
                 return;
 
-            foreach (var dir in baseDir.EnumerateDirectories())
-            {
-                RecursiveDelete(dir);
-            }
+            baseDir.EnumerateDirectories().ForEach(RecursiveDelete);
+
             var files = baseDir.GetFiles();
             foreach (var file in files)
             {

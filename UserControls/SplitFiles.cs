@@ -47,6 +47,7 @@ namespace DocumentScanner.UserControls
                         Subject = $"Document Dated: {r.Key?.Date.ToString() ?? "undated"}"
                     })
                     .NumScans(0)
+                    .ShowOutput()
                     .ForceOverwrite()
                     .Execute();
             };

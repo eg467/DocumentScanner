@@ -69,6 +69,7 @@
             // 
             // menuStrip1
             // 
+            this.menuStrip1.GripMargin = new System.Windows.Forms.Padding(2, 2, 0, 2);
             this.menuStrip1.ImageScalingSize = new System.Drawing.Size(28, 28);
             this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnStep1ScanImage,
@@ -77,7 +78,7 @@
             this.btnTools});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(2203, 38);
+            this.menuStrip1.Size = new System.Drawing.Size(2893, 38);
             this.menuStrip1.TabIndex = 18;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -177,7 +178,7 @@
             // btnConfigureZoom
             // 
             this.btnConfigureZoom.Name = "btnConfigureZoom";
-            this.btnConfigureZoom.Size = new System.Drawing.Size(315, 40);
+            this.btnConfigureZoom.Size = new System.Drawing.Size(282, 40);
             this.btnConfigureZoom.Text = "Configure Zoom";
             // 
             // btnSetDateFormat
@@ -185,7 +186,7 @@
             this.btnSetDateFormat.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.comboDateFormats});
             this.btnSetDateFormat.Name = "btnSetDateFormat";
-            this.btnSetDateFormat.Size = new System.Drawing.Size(315, 40);
+            this.btnSetDateFormat.Size = new System.Drawing.Size(282, 40);
             this.btnSetDateFormat.Text = "Date Format";
             // 
             // comboDateFormats
@@ -199,7 +200,7 @@
             // btnTestZoom
             // 
             this.btnTestZoom.Name = "btnTestZoom";
-            this.btnTestZoom.Size = new System.Drawing.Size(315, 40);
+            this.btnTestZoom.Size = new System.Drawing.Size(282, 40);
             this.btnTestZoom.Text = "Test Zoom";
             this.btnTestZoom.Click += new System.EventHandler(this.btnTestZoom_Click);
             // 
@@ -208,14 +209,14 @@
             this.pnlMainContainer.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlMainContainer.Location = new System.Drawing.Point(0, 38);
             this.pnlMainContainer.Name = "pnlMainContainer";
-            this.pnlMainContainer.Size = new System.Drawing.Size(2203, 1515);
+            this.pnlMainContainer.Size = new System.Drawing.Size(2893, 1515);
             this.pnlMainContainer.TabIndex = 19;
             // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(2203, 1553);
+            this.ClientSize = new System.Drawing.Size(2893, 1553);
             this.Controls.Add(this.pnlMainContainer);
             this.Controls.Add(this.menuStrip1);
             this.MainMenuStrip = this.menuStrip1;

@@ -6,11 +6,18 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using System.Text.RegularExpressions;
+using DocumentScanner.NapsOptions.Keys;
+using iText.Layout.Element;
+using System.Drawing.Imaging;
+using System.Security.Cryptography.X509Certificates;
+using System.Drawing.Text;
 
 namespace DocumentScanner.UserControls
 {
     public partial class BatchScan : UserControl
     {
+        private string OutputExtension => ".pdf";
+
         private string _outputDir;
 
         public string OutputDir
@@ -26,17 +33,44 @@ namespace DocumentScanner.UserControls
                 _outputDir = value;
                 this.btnShowOutputDir.Text = _outputDir;
                 this.btnShowOutputDir.Enabled = true;
+                PopulateExistingBaseNameComboOptions();
+
+                void PopulateExistingBaseNameComboOptions()
+                {
+                    var existingFileBaseNames =
+
+                     Directory.GetFiles(OutputDir, $"*{OutputExtension}")
+                         .Select(f =>
+                         {
+                             TryParseDateFromPath(f, out var fileInfo);
+                             return fileInfo.baseName;
+                         })
+                         .Where(x => x != null)
+                         .Distinct();
+
+                    var basenameOptions = (new string[] { "Existing names" })
+                        .Concat(existingFileBaseNames)
+                        .ToArray();
+                    this.comboExistingBaseNames.Items.Clear();
+                    this.comboExistingBaseNames.Items.AddRange(basenameOptions);
+                    this.comboExistingBaseNames.SelectedIndex = 0;
+                }
             }
         }
 
         private ScanFactory _scanFactory;
         private readonly DateFormatter _dateFormatter;
+        private readonly IPdfMerger _pdfMerger = new ItextPdfMerger();
 
-        public BatchScan(ScanFactory scanFactory, DateFormatter dateFormatter = null) : this()
+        public BatchScan(
+            ScanFactory scanFactory,
+            DateFormatter dateFormatter = null,
+            IPdfMerger pdfMerger = null) : this()
         {
             _scanFactory = scanFactory;
             _dateFormatter = dateFormatter ?? new DateFormatter();
             _dateFormatter.FormatChanged += dateFormater_FormatChanged;
+            _pdfMerger = pdfMerger ?? _pdfMerger;
         }
 
         /// <summary>
@@ -83,37 +117,41 @@ namespace DocumentScanner.UserControls
                 this.dateCurrentDocumentDate.CustomFormat = _dateFormatter.CurrentFormat;
                 this.dateCurrentDocumentDate.SetDate(value);
 
-                var nextDate = AdvanceDate(CurrentDate);
-                var nextDateLabel = _dateFormatter.Format(nextDate);
-                this.btnScanIncrementedDate.Text = $"Scan for {nextDateLabel}";
-                this.btnScanIncrementedDate.Tag = nextDate;
+                SetButton(this.btnScanCurrentDate);
+                SetButton(this.btnScanNextMonth, months: 1);
+                SetButton(this.btnScanSkippingTwoMonths, months: 2);
+                SetButton(this.btnScanOneMonthLessOneDay, TimeSpan.FromDays(-1), 1);
+                SetButton(this.btnScanOneMonthPlusOneDay, TimeSpan.FromDays(1), 1);
 
-                nextDate = AdvanceDate(nextDate);
-                nextDateLabel = _dateFormatter.Format(nextDate);
-                this.btnScanDoubleIncrementedDate.Text = $"Scan for {nextDateLabel}";
-                this.btnScanDoubleIncrementedDate.Tag = nextDate;
+                void SetButton(Button btn, TimeSpan? amount = null, int months = 0)
+                {
+                    var newDate = AdvanceDate(CurrentDate, amount, months);
+                    var label = _dateFormatter.Format(newDate);
+                    btn.Text = $"{label}";
+                    btn.Tag = newDate;
+                }
             }
         }
 
-        private DateTime? AdvanceDate(DateTime? date)
+        private DateTime? AdvanceDate(DateTime? date, TimeSpan? amount = null, int months = 0)
         {
             if (!date.HasValue) return null;
-            return date.Value.AddMonths(1);
+            return date.Value.Add(amount ?? TimeSpan.Zero).AddMonths(months);
         }
 
-        private string OutputExtension => ".pdf";
         private string UndatedLabel = "undated";
 
         private bool TryParseDateFromPath(string path, out (string baseName, DateTime? date) result)
         {
             var escapedUndated = Regex.Escape(UndatedLabel);
             var escapedExt = Regex.Escape(OutputExtension);
+            var filename = Path.GetFileName(path);
 
             var pattern =
                 @"(.*?)-(" + escapedUndated + @"|\d{4}-\d{2}-\d{2})" +
                 @"-\d{3,}" + escapedExt;
 
-            Match m = Regex.Match(path, pattern);
+            Match m = Regex.Match(filename, pattern);
             if (!m.Success)
             {
                 result = (null, null);
@@ -151,40 +189,75 @@ namespace DocumentScanner.UserControls
             AbsolutePath(ScanFilePath(CurrentDate));
 
         private string AbsolutePath(string relativePath) =>
-            System.IO.Path.Combine(OutputDir, relativePath);
+            Path.Combine(OutputDir, relativePath);
 
         private string CombinedFilename(DateTime? date, string baseName = null) =>
-            System.IO.Path.Combine("combined", $"{BaseFilename(date, baseName)}{OutputExtension}");
+            Path.Combine("combined", $"{BaseFilename(date, baseName)}{OutputExtension}");
+
+        public bool ViewMergedOutputOnCreation { get; set; } = true;
 
         private void ScanForDate(DateTime? date)
         {
-            if (!Directory.Exists(OutputDir))
-            {
-                MessageBox.Show(
-                    "The output directory must be set first.",
-                    "No output directory",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-                return;
-            }
+            if (!EnsureOutputDir()) return;
 
             var filepath = GetOutputPathForDate(date);
             var result = _scanFactory.Create()
                 .OutputPath(filepath)
+                .TiffCompression(TiffCompressionType.Auto)
                 .Verbose()
                 .Execute();
 
-            Log($"Scan result for {date}", $"{result.Output}\r\n{result.Error}");
-
             _lastFilesCreated = result.OutputFiles.ToArray();
+
+            var pageStats = _lastFilesCreated.Select(x => new
+            {
+                Pages = GetFilePageCount(x),
+                Path = x,
+            });
+
+            var totalPages = 0;
+            foreach (var filePath in _lastFilesCreated)
+            {
+                var pages = GetFilePageCount(filePath);
+                totalPages += pages;
+                var pageLabel = $"{pages} SS / {pages / 2} DS";
+                this.listRecentFiles.Items
+                    .Insert(0, filePath)
+                    .SubItems.Add(pageLabel);
+            }
+
+            Log($"Scan result for {date} (**{totalPages} pages SS / {totalPages / 2} pages DS**)",
+                $"{result.Output}\r\n{result.Error}");
 
             if (!_lastFilesCreated.Any()) return;
 
-            CombineFilesForDate(date);
-
-            foreach (string file in _lastFilesCreated)
+            var outputPath = CombineFilesForDate(date);
+            if (outputPath != null && ViewMergedOutputOnCreation)
             {
-                this.listRecentFiles.Items.Insert(0, file);
+                Process.Start(outputPath);
+            }
+
+            // LOCAL HELPER FUNCTIONS
+
+            int GetFilePageCount(string path)
+            {
+                switch (Path.GetExtension(path).ToUpper())
+                {
+                    case ".PDF":
+                        using (var documentReader = new iText.Kernel.Pdf.PdfReader(path))
+                        {
+                            var doc = new iText.Kernel.Pdf.PdfDocument(documentReader);
+                            return doc.GetNumberOfPages();
+                        }
+                    case ".TIFF":
+                    case ".TIF":
+                        using (System.Drawing.Image img = System.Drawing.Image.FromFile(path))
+                        {
+                            return img.GetFrameCount(FrameDimension.Page);
+                        }
+                    default:
+                        return 0;
+                }
             }
         }
 
@@ -193,56 +266,51 @@ namespace DocumentScanner.UserControls
         /// </summary>
         private const int _counterLen = 4;
 
-        private void CombineFilesForDate(DateTime? date, string baseName = null)
+        private bool EnsureOutputDir()
         {
+            if (!Directory.Exists(OutputDir))
+            {
+                MessageBox.Show("Please set an output directory first.");
+                return false;
+            }
+            return true;
+        }
+
+        private string CombineFilesForDate(DateTime? date, string baseName = null)
+        {
+            if (!EnsureOutputDir()) return null;
             baseName = baseName ?? CurrentSanitizedBaseName;
-            var counter = new string('?', _counterLen);
+            var counterPattern = new string('?', _counterLen);
             string filenamePattern =
-                $"{BaseFilename(date, CurrentSanitizedBaseName)}-{counter}{OutputExtension}";
+                $"{BaseFilename(date, baseName)}-{counterPattern}{OutputExtension}";
             var filesForDate = Directory.GetFiles(
                 OutputDir,
                 filenamePattern);
 
             string combinedFilename = CombinedFilename(date, baseName);
             string outputPath = AbsolutePath(combinedFilename);
-            var result = _scanFactory.Create()
-                .AddInputFiles(filesForDate)
-                .OutputPath(outputPath)
-                .NumScans(0)
-                .ForceOverwrite()
-                .Execute();
 
-            Log($"Merge file result for {baseName} @ {date}", $"{result.Output}\r\n{result.Error}");
-
-            if (result.ExitCode != 0 || !string.IsNullOrEmpty(result.Error))
-            {
-                MessageBox.Show(
-                    result.Output + Environment.NewLine + result.Error,
-                    "Error",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
+            _pdfMerger.Merge(filesForDate, outputPath);
+            return outputPath;
         }
 
         private void Log(string title, string message)
         {
-            var logEntry = $@"
-=======================================
+            var logEntry = $@"=======================================
 {title}
 {DateTime.Now}
 ---------------------------------------
-{message}
-";
+{message}";
 
             // TODO inject logging dependency
             // Log to debug
-            Debug.Write(logEntry);
+            Debug.WriteLine(logEntry);
 
             // Log to file
             try
             {
                 var logPath = AbsolutePath(LogFilename);
-                var x = System.IO.Path.GetTempFileName();
+                var x = Path.GetTempFileName();
 
                 var tmpLogPath = AbsolutePath($"log-{Guid.NewGuid()}.log");
                 var currentLog = File.Exists(logPath) ? File.ReadAllText(logPath) : "";
@@ -265,6 +333,7 @@ namespace DocumentScanner.UserControls
 
         private void CombineAllFiles()
         {
+            if (!EnsureOutputDir()) return;
             var completed = new HashSet<(string baseName, DateTime? date)>();
             foreach (string file in Directory.GetFiles(OutputDir, $"*.{OutputExtension}"))
             {
@@ -366,6 +435,7 @@ namespace DocumentScanner.UserControls
             try
             {
                 File.Delete(logPath);
+                this.txtBaseFilename.Text = "";
             }
             catch (Exception ex)
             {
@@ -375,6 +445,34 @@ namespace DocumentScanner.UserControls
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
             }
+        }
+
+        private void AlterCurrentDateButton_Click(object sender, EventArgs e)
+        {
+            var incrementTag = ((Button)sender).Tag as string;
+            var incrementAmounts = incrementTag.Split(':').Select(int.Parse).ToArray();
+            DateTime? newDate = AdvanceDate(
+                CurrentDate,
+                TimeSpan.FromDays(incrementAmounts[1]),
+                incrementAmounts[0]);
+
+            this.dateCurrentDocumentDate.SetDate(newDate);
+        }
+
+        private void btnCombineFilesForCurrentDate_Click(object sender, EventArgs e)
+        {
+            CombineFilesForDate(CurrentDate);
+        }
+
+        private void btnCombineAllFilesByDate_Click(object sender, EventArgs e)
+        {
+            CombineAllFiles();
+        }
+
+        private void comboExistingBaseNames_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (this.comboExistingBaseNames.SelectedIndex <= 0) return;
+            this.txtBaseFilename.Text = (string)this.comboExistingBaseNames.SelectedItem;
         }
     }
 }

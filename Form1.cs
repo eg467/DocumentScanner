@@ -1,6 +1,7 @@
 ﻿using DocumentScanner.NapsOptions;
 using DocumentScanner.Properties;
 using DocumentScanner.UserControls;
+using iText.Kernel.Pdf;
 using iText.Layout;
 using System;
 using System.Collections.Generic;
@@ -17,6 +18,9 @@ namespace DocumentScanner
 {
     public partial class Form1 : Form
     {
+        /// <summary>
+        /// Factory based on relative path from build-copied application
+        /// </summary>
         private readonly ScanFactory _scanCreator =
             new ScanFactory("Naps2App\\App\\NAPS2.Console.exe");
 
@@ -105,12 +109,11 @@ namespace DocumentScanner
 
         private void btnLoadTiff_Click(object sender, EventArgs e)
         {
-            using (var dialog = CreateOpenFileDialog($"TIFF Image|*.tiff|TIFF Image|*.tif"))
-            {
-                if (!dialog.TryGetPath(out string projectPath)) return;
-                var doc = _docSerializer.LoadOrCreate(projectPath);
-                LoadProject(doc);
-            }
+            var filter = $"TIFF Image|*.tiff|TIFF Image|*.tif";
+            if (!TryChooseOpenFile(out string projectPath, filter)) return;
+
+            var doc = _docSerializer.LoadOrCreate(projectPath);
+            LoadProject(doc);
         }
 
         private void btnBatchDateProcessing_Click(object sender, EventArgs e)
@@ -126,21 +129,29 @@ namespace DocumentScanner
         private void btnLoadProject_Click(object sender, EventArgs e)
         {
             var extension = DocumentMetadataSerializer.Extension;
-            using (var dialog = CreateOpenFileDialog($"Document Project File|*{extension}"))
-            {
-                if (!dialog.TryGetPath(out string projectPath)) return;
-                var doc = _docSerializer.LoadOrCreate(projectPath);
-                LoadProject(doc);
-            }
+            var filter = $"Document Project File|*{extension}";
+            if (!TryChooseOpenFile(out string projectPath, filter)) return;
+
+            var doc = _docSerializer.LoadOrCreate(projectPath);
+            LoadProject(doc);
         }
 
-        private OpenFileDialog CreateOpenFileDialog(string filter = null, string initialDirectory = null)
+        /// <summary>
+        /// </summary>
+        /// <param name="path">The user-selected path if one was selected</param>
+        /// <param name="filter">Filter used by the <see cref="OpenFileDialog"></see> e.g. 'PDF File|*.pdf|TEXT file|*.txt"/></param>
+        /// <param name="initialDirectory"></param>
+        /// <returns>True if the user selected a valid path</returns>
+        private bool TryChooseOpenFile(out string path, string filter = null, string initialDirectory = null)
         {
-            OpenFileDialog dialog = new OpenFileDialog()
+            using (var openDialog = new OpenFileDialog()
             {
-                Filter = filter
-            };
-            return dialog;
+                Filter = filter,
+                InitialDirectory = initialDirectory ?? Settings.Default.LastAccessedDirectory,
+            })
+            {
+                return openDialog.TryGetPath(out path);
+            }
         }
 
         private void btnStep3SplitToPdf_Click(object sender, EventArgs e)
@@ -175,15 +186,10 @@ namespace DocumentScanner
 
         private void btnConvertPdfToTiff_Click(object sender, EventArgs e)
         {
-            string inputPdf;
-            string outputPath;
+            var filter = "PDF File|*.pdf";
+            if (!TryChooseOpenFile(out string inputPdf, filter)) return;
 
-            using (var openDialog = CreateOpenFileDialog("PDF File|*.pdf"))
-            {
-                if (!openDialog.TryGetPath(out inputPdf)) return;
-            }
-
-            if (!this.fileScan.TryGetPath(out outputPath)) return;
+            if (!this.fileScan.TryGetPath(out string outputPath)) return;
 
             _scanCreator.Create()
                 .AddInputFiles(new InputFile(inputPdf))
@@ -202,9 +208,85 @@ namespace DocumentScanner
 
         private void comboDateFormats_SelectedIndexChanged(object sender, EventArgs e)
         {
-            var newIndex = Math.Max(0, this.comboDateFormats.SelectedIndex);
-            Debug.WriteLine($"Date Formatter went from {_dateFormatter.CurrentIndex} to {newIndex}");
-            _dateFormatter.CurrentIndex = newIndex;
+            var oldIdx = _dateFormatter.CurrentIndex;
+            var newIdx = Math.Max(0, this.comboDateFormats.SelectedIndex);
+            Debug.WriteLine($"Date Formatter went from {oldIdx} to {newIdx}");
+            _dateFormatter.CurrentIndex = newIdx;
+        }
+    }
+
+    /// <summary>
+    /// Merges multiple PDF files into one.
+    /// </summary>
+    public interface IPdfMerger
+    {
+        void Merge(IEnumerable<string> inputFiles, string outputFile);
+    }
+
+    /// <summary>
+    /// Merges multiple PDF files into one using the iText library.
+    /// </summary>
+    /// <remarks>Much faster than <see cref="Naps2PdfMerger"/>.</remarks>
+    public class ItextPdfMerger : IPdfMerger
+    {
+        public void Merge(IEnumerable<string> inputFiles, string outputFile)
+        {
+            if (File.Exists(outputFile))
+            {
+                File.Delete(outputFile);
+            }
+
+            var dir = Path.GetDirectoryName(outputFile);
+            Directory.CreateDirectory(dir);
+
+            using (var writer = new PdfWriter(outputFile, new WriterProperties { }))
+            {
+                var doc = new PdfDocument(writer);
+                var merger = new iText.Kernel.Utils.PdfMerger(doc, true, false);
+                merger.SetCloseSourceDocuments(true);
+                foreach (string inFile in inputFiles)
+                {
+                    Debug.WriteLine("itext merging " + inFile);
+                    using (var reader = new PdfReader(inFile))
+                    {
+                        var inDoc = new PdfDocument(reader);
+                        var numPages = inDoc.GetNumberOfPages();
+                        merger.Merge(inDoc, 1, numPages);
+                    }
+                }
+                merger.Close();
+                doc.Close();
+            }
+        }
+    }
+
+    /// <summary>
+    /// Merges multiple PDF files into one using the NAPS2 console app.
+    /// </summary>
+    public class Naps2PdfMerger : IPdfMerger
+    {
+        private readonly ScanFactory _scanCreator;
+
+        public Naps2PdfMerger(ScanFactory scanCreator)
+        {
+            _scanCreator = scanCreator;
+        }
+
+        public void Merge(IEnumerable<string> inputFiles, string outputFile)
+        {
+            if (File.Exists(outputFile))
+            {
+                File.Delete(outputFile);
+            }
+
+            _scanCreator.Create()
+                .AddInputFiles(inputFiles)
+                .OutputPath(outputFile)
+                .ForceOverwrite()
+                .Verbose()
+                .NumScans(0)
+                .ShowOutput()
+                .Execute();
         }
     }
 }
