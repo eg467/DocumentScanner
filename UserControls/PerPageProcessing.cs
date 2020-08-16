@@ -77,7 +77,7 @@ namespace DocumentScanner.UserControls
 
         private DateTime? CurrentDate
         {
-            get => DocData.PageDates[CurrentPage];
+            get => DocData.PageDates[CurrentPage].Date;
             set
             {
                 DocData.PageDates[CurrentPage] = value;
@@ -152,7 +152,7 @@ namespace DocumentScanner.UserControls
 
         private void cbHasDate_CheckedChanged(object sender, EventArgs e)
         {
-            CurrentDate = this.cbHasDate.Checked ? DateTime.Now : (DateTime?)null;
+            CurrentDate = this.cbHasDate.Checked ? DateTime.Now.Date : (DateTime?)null;
         }
     }
 }

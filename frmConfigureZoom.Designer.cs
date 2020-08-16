@@ -19,15 +19,16 @@
         {
             this.picSource = new System.Windows.Forms.PictureBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
+            this.lblPage = new System.Windows.Forms.Label();
+            this.btnNextPage = new System.Windows.Forms.Button();
+            this.btnPrevPage = new System.Windows.Forms.Button();
             this.btnSubmit = new System.Windows.Forms.Button();
             this.btnReset = new System.Windows.Forms.Button();
             this.lblSizeScale = new System.Windows.Forms.Label();
             this.trackScalePercentage = new System.Windows.Forms.TrackBar();
             this.pnlMain = new System.Windows.Forms.Panel();
             this.pnlOverlay = new System.Windows.Forms.Panel();
-            this.btnPrevPage = new System.Windows.Forms.Button();
-            this.btnNextPage = new System.Windows.Forms.Button();
-            this.lblPage = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.picSource)).BeginInit();
             this.groupBox1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.trackScalePercentage)).BeginInit();
@@ -46,6 +47,7 @@
             // 
             // groupBox1
             // 
+            this.groupBox1.Controls.Add(this.label1);
             this.groupBox1.Controls.Add(this.lblPage);
             this.groupBox1.Controls.Add(this.btnNextPage);
             this.groupBox1.Controls.Add(this.btnPrevPage);
@@ -56,10 +58,43 @@
             this.groupBox1.Dock = System.Windows.Forms.DockStyle.Top;
             this.groupBox1.Location = new System.Drawing.Point(0, 0);
             this.groupBox1.Name = "groupBox1";
-            this.groupBox1.Size = new System.Drawing.Size(3113, 100);
+            this.groupBox1.Size = new System.Drawing.Size(3113, 144);
             this.groupBox1.TabIndex = 1;
             this.groupBox1.TabStop = false;
             this.groupBox1.Text = "Controls";
+            // 
+            // lblPage
+            // 
+            this.lblPage.AutoSize = true;
+            this.lblPage.Location = new System.Drawing.Point(86, 42);
+            this.lblPage.Name = "lblPage";
+            this.lblPage.Size = new System.Drawing.Size(58, 25);
+            this.lblPage.TabIndex = 7;
+            this.lblPage.Text = "Page";
+            // 
+            // btnNextPage
+            // 
+            this.btnNextPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnNextPage.Location = new System.Drawing.Point(46, 29);
+            this.btnNextPage.Name = "btnNextPage";
+            this.btnNextPage.Size = new System.Drawing.Size(34, 53);
+            this.btnNextPage.TabIndex = 6;
+            this.btnNextPage.Text = "⏵︎";
+            this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
+            // 
+            // btnPrevPage
+            // 
+            this.btnPrevPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPrevPage.Location = new System.Drawing.Point(9, 29);
+            this.btnPrevPage.Margin = new System.Windows.Forms.Padding(0);
+            this.btnPrevPage.Name = "btnPrevPage";
+            this.btnPrevPage.Size = new System.Drawing.Size(34, 53);
+            this.btnPrevPage.TabIndex = 4;
+            this.btnPrevPage.Text = "⏴︎";
+            this.btnPrevPage.TextAlign = System.Drawing.ContentAlignment.TopCenter;
+            this.btnPrevPage.UseVisualStyleBackColor = true;
+            this.btnPrevPage.Click += new System.EventHandler(this.btnPrevPage_Click);
             // 
             // btnSubmit
             // 
@@ -84,12 +119,12 @@
             // 
             // lblSizeScale
             // 
-            this.lblSizeScale.AutoSize = true;
-            this.lblSizeScale.Location = new System.Drawing.Point(193, 42);
+            this.lblSizeScale.Location = new System.Drawing.Point(261, 57);
             this.lblSizeScale.Name = "lblSizeScale";
-            this.lblSizeScale.Size = new System.Drawing.Size(62, 25);
+            this.lblSizeScale.Size = new System.Drawing.Size(425, 37);
             this.lblSizeScale.TabIndex = 1;
             this.lblSizeScale.Text = "Scale";
+            this.lblSizeScale.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // trackScalePercentage
             // 
@@ -109,55 +144,33 @@
             this.pnlMain.Controls.Add(this.pnlOverlay);
             this.pnlMain.Controls.Add(this.picSource);
             this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.pnlMain.Location = new System.Drawing.Point(0, 100);
+            this.pnlMain.Location = new System.Drawing.Point(0, 144);
             this.pnlMain.Name = "pnlMain";
-            this.pnlMain.Size = new System.Drawing.Size(3113, 1401);
+            this.pnlMain.Size = new System.Drawing.Size(3113, 1357);
             this.pnlMain.TabIndex = 2;
             // 
             // pnlOverlay
             // 
             this.pnlOverlay.BackColor = System.Drawing.Color.Transparent;
-            this.pnlOverlay.Location = new System.Drawing.Point(834, 126);
+            this.pnlOverlay.Location = new System.Drawing.Point(577, 25);
             this.pnlOverlay.Name = "pnlOverlay";
-            this.pnlOverlay.Size = new System.Drawing.Size(949, 610);
+            this.pnlOverlay.Size = new System.Drawing.Size(439, 331);
             this.pnlOverlay.TabIndex = 1;
             this.pnlOverlay.Paint += new System.Windows.Forms.PaintEventHandler(this.pnlOverlay_Paint);
             this.pnlOverlay.MouseDown += new System.Windows.Forms.MouseEventHandler(this.panel2_MouseDown);
             this.pnlOverlay.MouseMove += new System.Windows.Forms.MouseEventHandler(this.panel2_MouseMove);
             this.pnlOverlay.MouseUp += new System.Windows.Forms.MouseEventHandler(this.panel2_MouseUp);
             // 
-            // btnPrevPage
+            // label1
             // 
-            this.btnPrevPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnPrevPage.Location = new System.Drawing.Point(9, 29);
-            this.btnPrevPage.Margin = new System.Windows.Forms.Padding(0);
-            this.btnPrevPage.Name = "btnPrevPage";
-            this.btnPrevPage.Size = new System.Drawing.Size(34, 53);
-            this.btnPrevPage.TabIndex = 4;
-            this.btnPrevPage.Text = "⏴︎";
-            this.btnPrevPage.TextAlign = System.Drawing.ContentAlignment.TopCenter;
-            this.btnPrevPage.UseVisualStyleBackColor = true;
-            this.btnPrevPage.Click += new System.EventHandler(this.btnPrevPage_Click);
-            // 
-            // btnNextPage
-            // 
-            this.btnNextPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnNextPage.Location = new System.Drawing.Point(46, 29);
-            this.btnNextPage.Name = "btnNextPage";
-            this.btnNextPage.Size = new System.Drawing.Size(34, 53);
-            this.btnNextPage.TabIndex = 6;
-            this.btnNextPage.Text = "⏵︎";
-            this.btnNextPage.UseVisualStyleBackColor = true;
-            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
-            // 
-            // lblPage
-            // 
-            this.lblPage.AutoSize = true;
-            this.lblPage.Location = new System.Drawing.Point(86, 42);
-            this.lblPage.Name = "lblPage";
-            this.lblPage.Size = new System.Drawing.Size(58, 25);
-            this.lblPage.TabIndex = 7;
-            this.lblPage.Text = "Page";
+            this.label1.AutoSize = true;
+            this.label1.Font = new System.Drawing.Font("Microsoft Sans Serif", 12F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.label1.Location = new System.Drawing.Point(12, 97);
+            this.label1.Name = "label1";
+            this.label1.Size = new System.Drawing.Size(1043, 32);
+            this.label1.TabIndex = 8;
+            this.label1.Text = "Select a preview area by dragging your cursor across a region of the image below." +
+    "";
             // 
             // frmConfigureZoom
             // 
@@ -168,7 +181,7 @@
             this.Controls.Add(this.pnlMain);
             this.Controls.Add(this.groupBox1);
             this.Name = "frmConfigureZoom";
-            this.Text = "frmConfigureZoom";
+            this.Text = "Choose Your Image Preview Area";
             this.Load += new System.EventHandler(this.frmConfigureZoom_Load);
             ((System.ComponentModel.ISupportInitialize)(this.picSource)).EndInit();
             this.groupBox1.ResumeLayout(false);
@@ -192,5 +205,6 @@
         private System.Windows.Forms.Button btnNextPage;
         private System.Windows.Forms.Button btnPrevPage;
         private System.Windows.Forms.Label lblPage;
+        private System.Windows.Forms.Label label1;
     }
 }

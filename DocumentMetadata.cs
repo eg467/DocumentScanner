@@ -2,8 +2,12 @@
 using iText.Layout;
 using Newtonsoft.Json;
 using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Data;
 using System.IO;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using Image = System.Drawing.Image;
 
 namespace DocumentScanner
@@ -14,7 +18,7 @@ namespace DocumentScanner
 
         public Image CreateImage() => Image.FromFile(ImagePath);
 
-        public RangedList<DateTime?> PageDates = new RangedList<DateTime?>(DateTime.Now);
+        public RangedList<PageDateStatus> PageDates = new RangedList<PageDateStatus>(PageDateStatus.Undated);
         public DateFormatter DateFormatter { get; set; } = new DateFormatter();
         public int PageSkipInterval { get; set; } = 1;
 
@@ -27,6 +31,91 @@ namespace DocumentScanner
 
             ImagePath = imagePath;
         }
+    }
+
+    public class PageDateStatus : IEquatable<PageDateStatus>, IComparer<PageDateStatus>, IComparable<PageDateStatus>
+    {
+        public DateTime? Date { get; set; }
+        private bool _trash = false;
+
+        public bool IsTrash
+        {
+            get => _trash;
+            set
+            {
+                _trash = value;
+                if (value)
+                {
+                    Date = null;
+                }
+            }
+        }
+
+        public bool HasDate => Date.HasValue;
+
+        public bool Equals(PageDateStatus other) =>
+            this.IsTrash == other.IsTrash && this.Date == other.Date;
+
+        public override int GetHashCode()
+        {
+            int hashCode = -342212554;
+            hashCode = hashCode * -1521134295 + this.Date.GetHashCode();
+            hashCode = hashCode * -1521134295 + this.IsTrash.GetHashCode();
+            return hashCode;
+        }
+
+        public PageDateStatus()
+        {
+        }
+
+        public PageDateStatus(DateTime? date, bool isTrash = false)
+        {
+            Date = date;
+            IsTrash = isTrash;
+        }
+
+        public static PageDateStatus FromDate(DateTime? date) => new PageDateStatus(date);
+
+        public static implicit operator PageDateStatus(DateTime? value) =>
+            new PageDateStatus(value);
+
+        public static implicit operator PageDateStatus(DateTime value) =>
+            new PageDateStatus(value);
+
+        public static PageDateStatus Trash => new PageDateStatus(null, true);
+
+        public static PageDateStatus Undated => new PageDateStatus(null, false);
+
+        public override string ToString() =>
+            IsTrash
+                ? "Unused"
+                : Date.HasValue
+                    ? Date.Value.ToString("d")
+                    : "Undated";
+
+        public int Compare(PageDateStatus x, PageDateStatus y)
+        {
+            if (x == null)
+            {
+                return y == null ? 0 : -1;
+            }
+            else if (y == null)
+            {
+                return 1;
+            }
+
+            // Trash appears after useful pages
+            if (x.IsTrash && !y.IsTrash) return 1;
+            if (!x.IsTrash && y.IsTrash) return -1;
+
+            // Undated appears before dated
+            int? dateComparison = x.Date?.CompareTo(y.Date);
+            if (dateComparison.HasValue) return dateComparison.Value;
+            // x.Date == null
+            return y.Date.HasValue ? -1 : 0;
+        }
+
+        public int CompareTo(PageDateStatus other) => Compare(this, other);
     }
 
     public interface IDocumentSaver
@@ -153,10 +242,11 @@ namespace DocumentScanner
                 throw new FileNotFoundException("Project file not found", projectPath);
             }
 
-            var data = File.ReadAllText(projectPath);
-            var docData = JsonConvert.DeserializeObject<DocumentMetadata>(data);
+            var serializedData = File.ReadAllText(projectPath);
+            var metadata = JsonConvert.DeserializeObject<DocumentMetadata>(serializedData);
 
-            if (!File.Exists(docData.ImagePath))
+            // The source image listed in the metadata file doesn't exist
+            if (!File.Exists(metadata.ImagePath))
             {
                 // If the image and project were both moved
                 // and the old image doesn't exist anymore, use the new image.
@@ -165,15 +255,15 @@ namespace DocumentScanner
                 {
                     // Neither the image listed in the serialized data
                     // nor any with the corresponding name and dir exist
-                    throw new FileNotFoundException("Image file not found.", docData.ImagePath);
+                    throw new FileNotFoundException("Image file not found.", metadata.ImagePath);
                 }
 
                 // Save the project with the updated image path.
-                docData.ImagePath = implicitImage;
-                Save(docData, projectPath);
+                metadata.ImagePath = implicitImage;
+                Save(metadata, projectPath);
             }
 
-            return new SerializedMetadata(projectPath, docData, this);
+            return new SerializedMetadata(projectPath, metadata, this);
         }
     }
 }

@@ -28,10 +28,13 @@ namespace DocumentScanner.UserControls
         private void btnSplitFiles_Click(object sender, EventArgs e)
         {
             if (!this.folderOutputPath.TryGetPath(out var dir)) return;
+            var sanitizedFilename = this.txtBaseFileName.Text.SanitizeFilename();
+            var dateRanges = _docData.PageDates
+                .GetRanges(0, GetPageCount() - 1)
+                .Where(s => !s.Key.IsTrash)
+                .ToList();
 
-            var dateRanges = _docData.PageDates.GetRanges(0, GetPageCount() - 1).ToList();
-
-            foreach (KeyValuePair<DateTime?, List<(int min, int? max)>> r in dateRanges)
+            foreach (KeyValuePair<PageDateStatus, List<(int min, int? max)>> r in dateRanges)
             {
                 var inputSlices = r.Value.Select(GetFileSlice);
                 var outputPath = CreateOutputPath(r.Key);
@@ -68,11 +71,13 @@ namespace DocumentScanner.UserControls
             InputFile GetFileSlice((int min, int? max) r) =>
                 new InputFile(_docData.ImagePath, r.min, r.max);
 
-            string CreateOutputPath(DateTime? stmtDate)
+            string CreateOutputPath(PageDateStatus stmtDate, bool includeCounter = true)
             {
-                var sanitizedFilename = this.txtBaseFileName.Text.SanitizeFilename();
-                var dateLabel = stmtDate?.ToString("yyyy-MM-dd") ?? "-undated";
-                return Path.Combine(dir, $@"{sanitizedFilename}-{dateLabel}-$(nnn).pdf");
+                var dateLabel = (stmtDate.HasDate)
+                    ? stmtDate.Date.Value.ToString("yyyy-MM-dd")
+                    : stmtDate.ToString();
+                var counter = includeCounter ? "-$(nn)" : "";
+                return Path.Combine(dir, $@"{sanitizedFilename}-{dateLabel}{counter}.pdf");
             }
         }
     }

@@ -50,7 +50,7 @@
             // 
             // tableContainer
             // 
-            this.tableContainer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            this.tableContainer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tableContainer.AutoSize = true;
             this.tableContainer.BackColor = System.Drawing.Color.Transparent;
@@ -154,7 +154,6 @@
             this.lblStatus.TabIndex = 10;
             this.lblStatus.Text = "Saving";
             this.lblStatus.Visible = false;
-            this.lblStatus.Click += new System.EventHandler(this.lblStatus_Click);
             // 
             // pnlIncrementMode
             // 
@@ -321,7 +320,6 @@
             this.Controls.Add(this.pnlOptions);
             this.Name = "BatchPageProcessing";
             this.Size = new System.Drawing.Size(1636, 1355);
-            this.Load += new System.EventHandler(this.BatchPageProcessing_Load);
             this.pnlOptions.ResumeLayout(false);
             this.pnlOptions.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numSkipInterval)).EndInit();

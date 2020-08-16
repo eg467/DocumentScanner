@@ -71,7 +71,7 @@ namespace DocumentScanner
                 Format = format;
             }
 
-            public override string ToString() => DateTime.Now.ToString(Format);
+            public override string ToString() => DateTime.Now.Date.ToString(Format);
         }
 
         private void LoadProject(SerializedMetadata docProject)

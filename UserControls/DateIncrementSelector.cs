@@ -37,8 +37,7 @@ namespace DocumentScanner.UserControls
         private DateTime IncrementBy(DateTime start, IDateTimeIncrementer incrementer) =>
             incrementer.Add(start, (double)IntervalAmount);
 
-        public DateTime Increment(DateTime start) =>
-            IncrementBy(start, Incrementer);
+        public DateTime Increment(DateTime start) => IncrementBy(start, Incrementer);
 
         public DateTime Decrement(DateTime start) =>
             IncrementBy(start, new NegatedIncrementor(Incrementer));
