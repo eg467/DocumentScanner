@@ -11,6 +11,8 @@ using iText.Layout.Element;
 using System.Drawing.Imaging;
 using System.Security.Cryptography.X509Certificates;
 using System.Drawing.Text;
+using DocumentScanner.NapsOptions;
+using System.Runtime.InteropServices;
 
 namespace DocumentScanner.UserControls
 {
@@ -38,8 +40,7 @@ namespace DocumentScanner.UserControls
                 void PopulateExistingBaseNameComboOptions()
                 {
                     var existingFileBaseNames =
-
-                     Directory.GetFiles(OutputDir, $"*{OutputExtension}")
+                        Directory.GetFiles(OutputDir, $"*{OutputExtension}")
                          .Select(f =>
                          {
                              TryParseDateFromPath(f, out var fileInfo);
@@ -60,12 +61,12 @@ namespace DocumentScanner.UserControls
 
         private ScanFactory _scanFactory;
         private readonly DateFormatter _dateFormatter;
-        private readonly IPdfMerger _pdfMerger = new ItextPdfMerger();
+        private readonly IFileMerger _pdfMerger = new ItextPdfMerger();
 
         public BatchScan(
             ScanFactory scanFactory,
             DateFormatter dateFormatter = null,
-            IPdfMerger pdfMerger = null) : this()
+            IFileMerger pdfMerger = null) : this()
         {
             _scanFactory = scanFactory;
             _dateFormatter = dateFormatter ?? new DateFormatter();
@@ -113,9 +114,23 @@ namespace DocumentScanner.UserControls
             get => this.dateCurrentDocumentDate.GetDate();
             set
             {
+                value = value.ValueOp(d => d.Date);
                 this.dateCurrentDocumentDate.Format = DateTimePickerFormat.Custom;
                 this.dateCurrentDocumentDate.CustomFormat = _dateFormatter.CurrentFormat;
                 this.dateCurrentDocumentDate.SetDate(value);
+
+                if (value.HasValue)
+                {
+                    this.calNextMonth.MinDate = new DateTime(1800, 1, 1);
+                    this.calNextMonth.MaxDate = DateTime.MaxValue;
+
+                    var minDate = new DateTime(value.Value.Year, value.Value.Month, 1);
+                    this.calNextMonth.MaxDate = minDate.AddMonths(2).AddDays(-1);
+                    this.calNextMonth.MinDate = minDate;
+                    this.calNextMonth.SetSelectionRange(value.Value, value.Value);
+                }
+
+                this.calNextMonth.Visible = value.HasValue;
 
                 SetButton(this.btnScanCurrentDate);
                 SetButton(this.btnScanNextMonth, months: 1);
@@ -194,7 +209,7 @@ namespace DocumentScanner.UserControls
         private string CombinedFilename(DateTime? date, string baseName = null) =>
             Path.Combine("combined", $"{BaseFilename(date, baseName)}{OutputExtension}");
 
-        public bool ViewMergedOutputOnCreation { get; set; } = true;
+        public bool ViewMergedOutputOnCreation { get; set; } = false;
 
         private void ScanForDate(DateTime? date)
         {
@@ -209,21 +224,12 @@ namespace DocumentScanner.UserControls
 
             _lastFilesCreated = result.OutputFiles.ToArray();
 
-            var pageStats = _lastFilesCreated.Select(x => new
-            {
-                Pages = GetFilePageCount(x),
-                Path = x,
-            });
-
             var totalPages = 0;
-            foreach (var filePath in _lastFilesCreated)
+            foreach (string file in _lastFilesCreated)
             {
-                var pages = GetFilePageCount(filePath);
-                totalPages += pages;
-                var pageLabel = $"{pages} SS / {pages / 2} DS";
-                this.listRecentFiles.Items
-                    .Insert(0, filePath)
-                    .SubItems.Add(pageLabel);
+                var scanPages = GetFilePageCount(file);
+                totalPages += scanPages;
+                RecordFileSave(file, scanPages);
             }
 
             Log($"Scan result for {date} (**{totalPages} pages SS / {totalPages / 2} pages DS**)",
@@ -236,35 +242,41 @@ namespace DocumentScanner.UserControls
             {
                 Process.Start(outputPath);
             }
+        }
 
-            // LOCAL HELPER FUNCTIONS
+        private void RecordFileSave(string file, int numPages)
+        {
+            var pageLabel = $"{numPages} SS / {numPages / 2} DS";
+            this.listRecentFiles.Items
+                .Insert(0, file)
+                .SubItems.Add(pageLabel);
+        }
 
-            int GetFilePageCount(string path)
+        private int GetFilePageCount(string path)
+        {
+            switch (Path.GetExtension(path).ToUpper())
             {
-                switch (Path.GetExtension(path).ToUpper())
-                {
-                    case ".PDF":
-                        using (var documentReader = new iText.Kernel.Pdf.PdfReader(path))
-                        {
-                            var doc = new iText.Kernel.Pdf.PdfDocument(documentReader);
-                            return doc.GetNumberOfPages();
-                        }
-                    case ".TIFF":
-                    case ".TIF":
-                        using (System.Drawing.Image img = System.Drawing.Image.FromFile(path))
-                        {
-                            return img.GetFrameCount(FrameDimension.Page);
-                        }
-                    default:
-                        return 0;
-                }
+                case ".PDF":
+                    using (var documentReader = new iText.Kernel.Pdf.PdfReader(path))
+                    {
+                        var doc = new iText.Kernel.Pdf.PdfDocument(documentReader);
+                        return doc.GetNumberOfPages();
+                    }
+                case ".TIFF":
+                case ".TIF":
+                    using (System.Drawing.Image img = System.Drawing.Image.FromFile(path))
+                    {
+                        return img.GetFrameCount(FrameDimension.Page);
+                    }
+                default:
+                    return 0;
             }
         }
 
         /// <summary>
         /// The length of the number, right-padded with zeros, for duplicate filenames.
         /// </summary>
-        private const int _counterLen = 4;
+        private const int _counterLen = 3;
 
         private bool EnsureOutputDir()
         {
@@ -281,16 +293,20 @@ namespace DocumentScanner.UserControls
             if (!EnsureOutputDir()) return null;
             baseName = baseName ?? CurrentSanitizedBaseName;
             var counterPattern = new string('?', _counterLen);
-            string filenamePattern =
-                $"{BaseFilename(date, baseName)}-{counterPattern}{OutputExtension}";
-            var filesForDate = Directory.GetFiles(
-                OutputDir,
-                filenamePattern);
+            string filenamePattern = $"{BaseFilename(date, baseName)}-{counterPattern}{OutputExtension}";
+            var filesForDate = Directory
+                .GetFiles(OutputDir, filenamePattern)
+                .Select(f => (InputFile)f)
+                .ToList();
 
             string combinedFilename = CombinedFilename(date, baseName);
             string outputPath = AbsolutePath(combinedFilename);
 
             _pdfMerger.Merge(filesForDate, outputPath);
+
+            var numPages = GetFilePageCount(outputPath);
+            RecordFileSave(outputPath, numPages);
+
             return outputPath;
         }
 
@@ -373,25 +389,16 @@ namespace DocumentScanner.UserControls
             string confirmMsg = $"Overwrite these files:\r\n{fileDescription}";
             if (!FileExtensions.ConfirmAction(confirmMsg)) return;
 
-            var failures = new List<Exception>();
-            foreach (string file in _lastFilesCreated)
-            {
-                if (File.Exists(file))
-                {
-                    try
-                    {
-                        File.Delete(file);
-                    }
-                    catch (Exception ex)
-                    {
-                        failures.Add(ex);
-                    }
-                }
-            }
+            var failedDeletions = _lastFilesCreated
+                .Select(f => new FileInfo(f))
+                .Where(fi => !fi.SafeDelete())
+                .ToList();
 
-            if (failures.Any())
+            if (failedDeletions.Any())
             {
-                throw new AggregateException("Failed to delete some files.", failures);
+                MessageBox.Show(
+                    "The following files could not be deleted:\r\n"
+                    + string.Join("\r\n", failedDeletions));
             }
 
             // Recombine files in case a portion of them were deleted.
@@ -417,11 +424,10 @@ namespace DocumentScanner.UserControls
 
         private void listRecentFiles_MouseDoubleClick(object sender, MouseEventArgs e)
         {
-            var selectedFile = this.listRecentFiles.SelectedItems.Cast<string>().FirstOrDefault();
-            if (selectedFile != null)
-            {
-                Process.Start(selectedFile);
-            }
+            this.listRecentFiles.SelectedItems
+                .Cast<ListViewItem>()
+                .Select(i => i.Text)
+                .ForEach(f => Process.Start(f));
         }
 
         private void BatchScan_Load(object sender, EventArgs e)
@@ -473,6 +479,11 @@ namespace DocumentScanner.UserControls
         {
             if (this.comboExistingBaseNames.SelectedIndex <= 0) return;
             this.txtBaseFilename.Text = (string)this.comboExistingBaseNames.SelectedItem;
+        }
+
+        private void calNextMonth_DateChanged(object sender, DateRangeEventArgs e)
+        {
+            CurrentDate = this.calNextMonth.SelectionStart;
         }
     }
 }

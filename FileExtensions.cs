@@ -21,11 +21,26 @@ namespace DocumentScanner
         }
 
         public static bool ConfirmAction(string action) =>
-    DialogResult.OK ==
-    MessageBox.Show(
-        $"Are you sure you want to do the following:\r\n{action}",
-        "Confirm Action",
-        MessageBoxButtons.OKCancel);
+            DialogResult.OK ==
+            MessageBox.Show(
+                $"Are you sure you want to do the following:\r\n{action}",
+                "Confirm Action",
+                MessageBoxButtons.OKCancel);
+
+        public static bool SafeDelete(this FileInfo file)
+        {
+            if (!file.Exists) return false;
+            try
+            {
+                file.Delete();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Error deleting file: " + ex.Message);
+                return false;
+            }
+        }
 
         public static string SanitizeFilename(this string filename)
         {
@@ -132,7 +147,7 @@ namespace DocumentScanner
                 return false;
             }
 
-            Settings.Default.LastAccessedDirectory = Path.GetDirectoryName(path);
+            Settings.Default.LastAccessedDirectory = path;
             Settings.Default.Save();
 
             return true;

@@ -156,7 +156,9 @@ namespace DocumentScanner
                 start = valEnum.Current.Key;
                 currentVal = valEnum.Current.Value;
             }
-            while (true)
+            // Avoid infinite enumerable
+            var maxItems = 1000;
+            while (start < maxItems)
             {
                 yield return new KeyValuePair<int, T>(start++, currentVal);
             }

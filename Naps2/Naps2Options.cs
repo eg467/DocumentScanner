@@ -106,6 +106,9 @@ namespace DocumentScanner.NapsOptions
             }
         }
 
+        public static explicit operator InputFile(string filePath) =>
+            new InputFile(filePath, null, null);
+
         public override bool Equals(object obj) => Equals(obj as InputFile);
 
         public override string ToString() =>

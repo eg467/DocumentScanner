@@ -21,7 +21,12 @@ namespace DocumentScanner.UserControls
         private readonly IDocumentSaver _saver;
         private readonly Image _baseImage;
         private readonly PreviewImageCreator _imageCreator;
+
+        /// <summary>
+        /// True to avoid event handlers from responding to programmatic changes in UI values.
+        /// </summary>
         private bool _isPopulating = false;
+
         private Timer _statusTimer;
         private CancellationTokenSource _imagePopCanceler;
 
@@ -35,7 +40,8 @@ namespace DocumentScanner.UserControls
         public BatchPageProcessing(
             DocumentMetadata docData,
             IDocumentSaver saver,
-            PreviewImageCreator imageCreator = null) : this()
+            PreviewImageCreator imageCreator = null)
+        : this()
         {
             _docData = docData;
             _saver = saver;
@@ -66,6 +72,8 @@ namespace DocumentScanner.UserControls
         {
             _imagePopCanceler?.Cancel();
 
+            this.tableContainer.MaximumSize = new Size(int.MaxValue, int.MaxValue);
+
             await PersistPageSkipAsync();
             _rows.Clear();
             _isPopulating = true;
@@ -84,6 +92,10 @@ namespace DocumentScanner.UserControls
             foreach (var pageDate in GetPageDates())
             {
                 var row = new RowData(pageDate.Key, pageDate.Value, _docData.DateFormatter);
+
+                // TODO: Testing/ REMOVE
+                if (row.Index < 100) continue;
+
                 _rows[row.Index] = row;
 
                 this.tableContainer.Invoke((Action)(() =>
@@ -144,7 +156,10 @@ namespace DocumentScanner.UserControls
                 }
                 finally
                 {
-                    row.Picture.Invoke((Action)(() => row.Picture.Image = scaledImg));
+                    if (!row.Picture.IsDisposed)
+                    {
+                        row.Picture.Invoke((Action)(() => row.Picture.Image = scaledImg));
+                    }
                 }
             }
 
@@ -276,9 +291,9 @@ namespace DocumentScanner.UserControls
             {
                 PageDateStatus StatusIncrementer(PageDateStatus oldStatus)
                 {
-                    if (row.Status.IsTrash) return PageDateStatus.Trash;
-                    if (!row.Status.HasDate) return PageDateStatus.Undated;
-                    return incrementer(row.Date.Value);
+                    if (oldStatus.IsTrash) return PageDateStatus.Trash;
+                    if (!oldStatus.HasDate) return PageDateStatus.Undated;
+                    return incrementer(oldStatus.Date.Value);
                 }
 
                 if (this.rbIncrementImplicitlySetPages.Checked)
@@ -559,7 +574,9 @@ namespace DocumentScanner.UserControls
             var affectedRows = _rows.Values.Where(x => x.Index >= firstPage);
             foreach (RowData r in affectedRows)
             {
-                r.Status = _docData.PageDates[r.Index];
+                PageDateStatus status = currentDate;
+                _docData.PageDates[r.Index] = status;
+                r.Status = status;
                 r.RefreshUi();
                 currentDate = this.incselAutoIncrement.Increment(currentDate);
             }
@@ -569,7 +586,7 @@ namespace DocumentScanner.UserControls
 
         private async void btnRefresh_Click(object sender, EventArgs e)
         {
-            await Task.Run(RefreshTableAsync);
+            await RefreshTableAsync();
         }
 
         private async void btnResetDates_Click(object sender, EventArgs e)

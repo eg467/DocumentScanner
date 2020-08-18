@@ -26,6 +26,8 @@
             this.txtBaseFilename = new System.Windows.Forms.TextBox();
             this.lblBaseFilename = new System.Windows.Forms.Label();
             this.listRecentFiles = new System.Windows.Forms.ListView();
+            this.colPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.colPages = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
             this.lblInstructions = new System.Windows.Forms.Label();
             this.btnDeleteLastScan = new System.Windows.Forms.Button();
             this.txtLog = new System.Windows.Forms.TextBox();
@@ -34,6 +36,7 @@
             this.btnScanOneMonthLessOneDay = new System.Windows.Forms.Button();
             this.btnScanOneMonthPlusOneDay = new System.Windows.Forms.Button();
             this.grpAdvanceScanning = new System.Windows.Forms.GroupBox();
+            this.pnlNextMonthCalendarContainer = new System.Windows.Forms.Panel();
             this.grpModifyCurrentDate = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.btnBackMonth = new System.Windows.Forms.Button();
@@ -43,9 +46,9 @@
             this.btnCombineFilesForCurrentDate = new System.Windows.Forms.Button();
             this.btnCombineAllFilesByDate = new System.Windows.Forms.Button();
             this.comboExistingBaseNames = new System.Windows.Forms.ComboBox();
-            this.colPath = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
-            this.colPages = ((System.Windows.Forms.ColumnHeader)(new System.Windows.Forms.ColumnHeader()));
+            this.calNextMonth = new DocumentScanner.UserControls.CustomSizeCalendar();
             this.grpAdvanceScanning.SuspendLayout();
+            this.pnlNextMonthCalendarContainer.SuspendLayout();
             this.grpModifyCurrentDate.SuspendLayout();
             this.flowLayoutPanel1.SuspendLayout();
             this.SuspendLayout();
@@ -66,7 +69,7 @@
             this.btnScanNextMonth.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.btnScanNextMonth.Font = new System.Drawing.Font("Microsoft Sans Serif", 32F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnScanNextMonth.Location = new System.Drawing.Point(6, 469);
+            this.btnScanNextMonth.Location = new System.Drawing.Point(6, 840);
             this.btnScanNextMonth.Name = "btnScanNextMonth";
             this.btnScanNextMonth.Size = new System.Drawing.Size(1149, 241);
             this.btnScanNextMonth.TabIndex = 1;
@@ -142,6 +145,16 @@
             this.listRecentFiles.SelectedIndexChanged += new System.EventHandler(this.listRecentFiles_SelectedIndexChanged);
             this.listRecentFiles.MouseDoubleClick += new System.Windows.Forms.MouseEventHandler(this.listRecentFiles_MouseDoubleClick);
             // 
+            // colPath
+            // 
+            this.colPath.Text = "File Path";
+            this.colPath.Width = 800;
+            // 
+            // colPages
+            // 
+            this.colPages.Text = "# Pages";
+            this.colPages.Width = 200;
+            // 
             // lblInstructions
             // 
             this.lblInstructions.AutoSize = true;
@@ -188,7 +201,7 @@
             this.btnScanSkippingTwoMonths.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.btnScanSkippingTwoMonths.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.14286F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnScanSkippingTwoMonths.Location = new System.Drawing.Point(6, 815);
+            this.btnScanSkippingTwoMonths.Location = new System.Drawing.Point(6, 1186);
             this.btnScanSkippingTwoMonths.Name = "btnScanSkippingTwoMonths";
             this.btnScanSkippingTwoMonths.Size = new System.Drawing.Size(1149, 65);
             this.btnScanSkippingTwoMonths.TabIndex = 12;
@@ -201,7 +214,7 @@
             this.btnScanOneMonthLessOneDay.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.btnScanOneMonthLessOneDay.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.14286F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnScanOneMonthLessOneDay.Location = new System.Drawing.Point(6, 721);
+            this.btnScanOneMonthLessOneDay.Location = new System.Drawing.Point(6, 1092);
             this.btnScanOneMonthLessOneDay.Name = "btnScanOneMonthLessOneDay";
             this.btnScanOneMonthLessOneDay.Size = new System.Drawing.Size(564, 76);
             this.btnScanOneMonthLessOneDay.TabIndex = 13;
@@ -213,7 +226,7 @@
             // 
             this.btnScanOneMonthPlusOneDay.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.btnScanOneMonthPlusOneDay.Font = new System.Drawing.Font("Microsoft Sans Serif", 20.14286F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnScanOneMonthPlusOneDay.Location = new System.Drawing.Point(614, 721);
+            this.btnScanOneMonthPlusOneDay.Location = new System.Drawing.Point(614, 1092);
             this.btnScanOneMonthPlusOneDay.Name = "btnScanOneMonthPlusOneDay";
             this.btnScanOneMonthPlusOneDay.Size = new System.Drawing.Size(541, 76);
             this.btnScanOneMonthPlusOneDay.TabIndex = 14;
@@ -223,6 +236,7 @@
             // 
             // grpAdvanceScanning
             // 
+            this.grpAdvanceScanning.Controls.Add(this.pnlNextMonthCalendarContainer);
             this.grpAdvanceScanning.Controls.Add(this.btnScanNextMonth);
             this.grpAdvanceScanning.Controls.Add(this.btnScanOneMonthPlusOneDay);
             this.grpAdvanceScanning.Controls.Add(this.btnScanSkippingTwoMonths);
@@ -230,10 +244,18 @@
             this.grpAdvanceScanning.Controls.Add(this.btnScanCurrentDate);
             this.grpAdvanceScanning.Location = new System.Drawing.Point(1104, 82);
             this.grpAdvanceScanning.Name = "grpAdvanceScanning";
-            this.grpAdvanceScanning.Size = new System.Drawing.Size(1161, 948);
+            this.grpAdvanceScanning.Size = new System.Drawing.Size(1161, 1257);
             this.grpAdvanceScanning.TabIndex = 15;
             this.grpAdvanceScanning.TabStop = false;
             this.grpAdvanceScanning.Text = "Scan as the following date...";
+            // 
+            // pnlNextMonthCalendarContainer
+            // 
+            this.pnlNextMonthCalendarContainer.Controls.Add(this.calNextMonth);
+            this.pnlNextMonthCalendarContainer.Location = new System.Drawing.Point(6, 335);
+            this.pnlNextMonthCalendarContainer.Name = "pnlNextMonthCalendarContainer";
+            this.pnlNextMonthCalendarContainer.Size = new System.Drawing.Size(1149, 486);
+            this.pnlNextMonthCalendarContainer.TabIndex = 15;
             // 
             // grpModifyCurrentDate
             // 
@@ -339,15 +361,16 @@
             this.comboExistingBaseNames.TabIndex = 19;
             this.comboExistingBaseNames.SelectedIndexChanged += new System.EventHandler(this.comboExistingBaseNames_SelectedIndexChanged);
             // 
-            // colPath
+            // calNextMonth
             // 
-            this.colPath.Text = "File Path";
-            this.colPath.Width = 800;
-            // 
-            // colPages
-            // 
-            this.colPages.Text = "# Pages";
-            this.colPages.Width = 200;
+            this.calNextMonth.CalendarDimensions = new System.Drawing.Size(2, 1);
+            this.calNextMonth.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.calNextMonth.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.calNextMonth.Location = new System.Drawing.Point(0, 0);
+            this.calNextMonth.MaxSelectionCount = 1;
+            this.calNextMonth.Name = "calNextMonth";
+            this.calNextMonth.TabIndex = 0;
+            this.calNextMonth.DateChanged += new System.Windows.Forms.DateRangeEventHandler(this.calNextMonth_DateChanged);
             // 
             // BatchScan
             // 
@@ -372,6 +395,7 @@
             this.Size = new System.Drawing.Size(2556, 1363);
             this.Load += new System.EventHandler(this.BatchScan_Load);
             this.grpAdvanceScanning.ResumeLayout(false);
+            this.pnlNextMonthCalendarContainer.ResumeLayout(false);
             this.grpModifyCurrentDate.ResumeLayout(false);
             this.flowLayoutPanel1.ResumeLayout(false);
             this.ResumeLayout(false);
@@ -409,5 +433,7 @@
         private System.Windows.Forms.ComboBox comboExistingBaseNames;
         private System.Windows.Forms.ColumnHeader colPath;
         private System.Windows.Forms.ColumnHeader colPages;
+        private System.Windows.Forms.Panel pnlNextMonthCalendarContainer;
+        private CustomSizeCalendar calNextMonth;
     }
 }

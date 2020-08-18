@@ -167,11 +167,23 @@
       <DependentUpon>BatchScan.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControls\ClassExtensions.cs" />
+    <Compile Include="UserControls\CustomSizeCalendar.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="UserControls\CustomSizeCalendar.Designer.cs">
+      <DependentUpon>CustomSizeCalendar.cs</DependentUpon>
+    </Compile>
     <Compile Include="UserControls\DateIncrementSelector.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="UserControls\DateIncrementSelector.Designer.cs">
       <DependentUpon>DateIncrementSelector.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UserControls\MergeScansControl.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="UserControls\MergeScansControl.Designer.cs">
+      <DependentUpon>MergeScansControl.cs</DependentUpon>
     </Compile>
     <Compile Include="UserControls\PerPageProcessing.cs">
       <SubType>UserControl</SubType>
@@ -211,6 +223,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\DateIncrementSelector.resx">
       <DependentUpon>DateIncrementSelector.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="UserControls\MergeScansControl.resx">
+      <DependentUpon>MergeScansControl.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UserControls\PerPageProcessing.resx">
       <DependentUpon>PerPageProcessing.cs</DependentUpon>

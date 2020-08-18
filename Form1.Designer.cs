@@ -50,6 +50,7 @@
             this.comboDateFormats = new System.Windows.Forms.ToolStripComboBox();
             this.btnTestZoom = new System.Windows.Forms.ToolStripMenuItem();
             this.pnlMainContainer = new System.Windows.Forms.Panel();
+            this.btnMergePdfs = new System.Windows.Forms.ToolStripMenuItem();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -170,7 +171,8 @@
             this.btnTools.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.btnConfigureZoom,
             this.btnSetDateFormat,
-            this.btnTestZoom});
+            this.btnTestZoom,
+            this.btnMergePdfs});
             this.btnTools.Name = "btnTools";
             this.btnTools.Size = new System.Drawing.Size(78, 34);
             this.btnTools.Text = "Tools";
@@ -178,7 +180,7 @@
             // btnConfigureZoom
             // 
             this.btnConfigureZoom.Name = "btnConfigureZoom";
-            this.btnConfigureZoom.Size = new System.Drawing.Size(282, 40);
+            this.btnConfigureZoom.Size = new System.Drawing.Size(315, 40);
             this.btnConfigureZoom.Text = "Configure Zoom";
             // 
             // btnSetDateFormat
@@ -186,7 +188,7 @@
             this.btnSetDateFormat.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.comboDateFormats});
             this.btnSetDateFormat.Name = "btnSetDateFormat";
-            this.btnSetDateFormat.Size = new System.Drawing.Size(282, 40);
+            this.btnSetDateFormat.Size = new System.Drawing.Size(315, 40);
             this.btnSetDateFormat.Text = "Date Format";
             // 
             // comboDateFormats
@@ -200,7 +202,7 @@
             // btnTestZoom
             // 
             this.btnTestZoom.Name = "btnTestZoom";
-            this.btnTestZoom.Size = new System.Drawing.Size(282, 40);
+            this.btnTestZoom.Size = new System.Drawing.Size(315, 40);
             this.btnTestZoom.Text = "Test Zoom";
             this.btnTestZoom.Click += new System.EventHandler(this.btnTestZoom_Click);
             // 
@@ -211,6 +213,13 @@
             this.pnlMainContainer.Name = "pnlMainContainer";
             this.pnlMainContainer.Size = new System.Drawing.Size(2893, 1515);
             this.pnlMainContainer.TabIndex = 19;
+            // 
+            // btnMergePdfs
+            // 
+            this.btnMergePdfs.Name = "btnMergePdfs";
+            this.btnMergePdfs.Size = new System.Drawing.Size(315, 40);
+            this.btnMergePdfs.Text = "Merge Pdfs";
+            this.btnMergePdfs.Click += new System.EventHandler(this.btnMergePdfs_Click);
             // 
             // Form1
             // 
@@ -253,6 +262,7 @@
         private System.Windows.Forms.Panel pnlMainContainer;
         private System.Windows.Forms.ToolStripMenuItem btnTestZoom;
         private System.Windows.Forms.ToolStripMenuItem btnBatchScan;
+        private System.Windows.Forms.ToolStripMenuItem btnMergePdfs;
     }
 }
 

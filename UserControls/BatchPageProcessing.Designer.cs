@@ -39,6 +39,7 @@
             this.numAutoIncrementPageStart = new System.Windows.Forms.NumericUpDown();
             this.btnAutoIncrement = new System.Windows.Forms.Button();
             this.pnlMain = new System.Windows.Forms.Panel();
+            this.btnRepaint = new System.Windows.Forms.Button();
             this.pnlOptions.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numSkipInterval)).BeginInit();
             this.pnlIncrementMode.SuspendLayout();
@@ -50,7 +51,7 @@
             // 
             // tableContainer
             // 
-            this.tableContainer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left)
+            this.tableContainer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.tableContainer.AutoSize = true;
             this.tableContainer.BackColor = System.Drawing.Color.Transparent;
@@ -68,6 +69,7 @@
             // 
             // pnlOptions
             // 
+            this.pnlOptions.Controls.Add(this.btnRepaint);
             this.pnlOptions.Controls.Add(this.btnRefresh);
             this.pnlOptions.Controls.Add(this.lblSkipIntervalRight);
             this.pnlOptions.Controls.Add(this.numSkipInterval);
@@ -311,6 +313,16 @@
             this.pnlMain.Size = new System.Drawing.Size(1636, 1056);
             this.pnlMain.TabIndex = 3;
             // 
+            // btnRepaint
+            // 
+            this.btnRepaint.BackColor = System.Drawing.SystemColors.ButtonFace;
+            this.btnRepaint.Location = new System.Drawing.Point(1350, 165);
+            this.btnRepaint.Name = "btnRepaint";
+            this.btnRepaint.Size = new System.Drawing.Size(204, 44);
+            this.btnRepaint.TabIndex = 16;
+            this.btnRepaint.Text = "Repaint";
+            this.btnRepaint.UseVisualStyleBackColor = false;
+            // 
             // BatchPageProcessing
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(11F, 24F);
@@ -359,5 +371,6 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.NumericUpDown numAutoIncrementPageStart;
+        private System.Windows.Forms.Button btnRepaint;
     }
 }
