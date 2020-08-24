@@ -9,6 +9,9 @@ using System.Drawing.Imaging;
 using System.Threading;
 using Timer = System.Windows.Forms.Timer;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
+using DocumentScanner.Properties;
+using System.Globalization;
 
 namespace DocumentScanner.UserControls
 {
@@ -16,7 +19,7 @@ namespace DocumentScanner.UserControls
     {
         #region Private Fields
 
-        private readonly Dictionary<int, RowData> _rows = new Dictionary<int, RowData>();
+        private IDictionary<int, RowData> _rows = new SortedDictionary<int, RowData>();
         private readonly DocumentMetadata _docData;
         private readonly IDocumentSaver _saver;
         private readonly Image _baseImage;
@@ -25,10 +28,9 @@ namespace DocumentScanner.UserControls
         /// <summary>
         /// True to avoid event handlers from responding to programmatic changes in UI values.
         /// </summary>
-        private bool _isPopulating = false;
+        private bool _isPopulating;
 
         private Timer _statusTimer;
-        private CancellationTokenSource _imagePopCanceler;
 
         #endregion Private Fields
 
@@ -36,6 +38,8 @@ namespace DocumentScanner.UserControls
         {
             InitializeComponent();
         }
+
+        private Size _pagingControlSize;
 
         public BatchPageProcessing(
             DocumentMetadata docData,
@@ -50,6 +54,7 @@ namespace DocumentScanner.UserControls
             _docData.DateFormatter.FormatChanged += UpdateAllDateLabels;
 
             this.numSkipInterval.Value = _docData.PageSkipInterval;
+            _pagingControlSize = this.pnlPagedRowContainer.Size;
         }
 
         /// <summary>
@@ -61,6 +66,7 @@ namespace DocumentScanner.UserControls
             if (disposing)
             {
                 components?.Dispose();
+                _rows?.ForEach(r => r.Value.Dispose());
                 _docData.DateFormatter.FormatChanged -= UpdateAllDateLabels;
                 _baseImage?.Dispose();
             }
@@ -68,316 +74,430 @@ namespace DocumentScanner.UserControls
             base.Dispose(disposing);
         }
 
-        private async Task RefreshTableAsync()
+        #region Paging
+
+        // Paging of pages because the max control height is limited by int16
+
+        private class Paging
         {
-            _imagePopCanceler?.Cancel();
+            /// <summary>
+            /// The maximum number of elements per page
+            /// </summary>
+            ///
+            private int _currentPage;
 
-            this.tableContainer.MaximumSize = new Size(int.MaxValue, int.MaxValue);
+            public int CurrentPage
+            {
+                get => _currentPage;
+                set
+                {
+                    value = Math.Max(0, value);
+                    value = Math.Min(PageCount - 1, value);
+                    _currentPage = value;
+                }
+            }
 
+            public bool IsFirst => CurrentPage == 0;
+            public bool IsLast => CurrentPage == PageCount - 1;
+
+            public int PageCount => (int)Math.Ceiling((double)NumItems / PageSize);
+
+            public int NumItems { get; }
+
+            public int PageSize { get; set; }
+
+            public Range CurrentItemRange =>
+               new Range()
+               {
+                   Min = Math.Max(0, CurrentPage * PageSize),
+                   Max = Math.Min(NumItems - 1, CurrentPage * PageSize + PageSize - 1)
+               };
+
+            public Paging(int numItems, int pageSize)
+            {
+                NumItems = numItems;
+                PageSize = pageSize;
+            }
+        }
+
+        private Paging _paging;
+
+        private int NumDocPages =>
+            (int)Math.Ceiling(
+                (double)(_baseImage?.GetFrameCount(FrameDimension.Page) ?? 0)
+                / _docData.PageSkipInterval);
+
+        private async Task UpdatePagingAwait()
+        {
             await PersistPageSkipAsync();
-            _rows.Clear();
+            var rowHeight = CalculateRowHeight();
+            var maxControlHeight = short.MaxValue - _pagingControlSize.Height;
+            // The maximum number of rows you can show before hitting the control size limit (short.MaxValue).
+            var maxRowsThatWillFit = maxControlHeight / rowHeight;
+
+            var pageSize = Math.Min(maxRowsThatWillFit, _maxRowsPerPage);
+
+            _paging = new Paging(NumDocPages, pageSize);
+            Debug.WriteLine($"Updated Paging to NumItems={_paging.NumItems}, PageSize={_paging.PageSize}, PageCount={_paging.PageCount}");
+        }
+
+        /// <summary>
+        /// The number of rows to ideally show per page, if they will fit.
+        /// </summary>
+        private const int _maxRowsPerPage = 50;
+
+        private async Task SetPageAsync(int pageNum)
+        {
+            if (_paging == null)
+            {
+                await UpdatePagingAwait();
+            }
+            _paging.CurrentPage = pageNum;
+
+            this.btnPreviousPage.Visible = !_paging.IsFirst;
+            this.btnPreviousPage.Text = $"Previous Page ({_paging.CurrentPage}/{_paging.PageCount})";
+
+            this.btnNextPage.Visible = !_paging.IsLast;
+            this.btnNextPage.Text = $"Next Page ({_paging.CurrentPage + 2}/{_paging.PageCount})";
+
+            RefreshTable();
+        }
+
+        private int CalculateRowHeight()
+        {
+            var canonicalSizeCtl = _docData.PageDates.FirstOrDefault();
+            if (canonicalSizeCtl.Value == null) return 0;
+
+            var row = RowDataFromPageData(canonicalSizeCtl.Key, canonicalSizeCtl.Value);
+            using (var rowCtl = CreateRow(row))
+            {
+                var preferredSize = rowCtl.GetPreferredSize(Size.Empty);
+                return preferredSize.Height + rowCtl.Margin.Top + rowCtl.Margin.Bottom;
+            }
+        }
+
+        #endregion Paging
+
+        private void RefreshTable()
+        {
             _isPopulating = true;
 
-            this.tableContainer.Invoke((Action)(() =>
+            this.pnlRowContainer.Invoke((Action)(() =>
             {
                 this.pnlOptions.Enabled = false;
-                this.tableContainer.Controls.Clear();
-                this.tableContainer.RowStyles.Add(new RowStyle(SizeType.AutoSize));
-
-                this.tableContainer.SuspendLayout();
+                this.pnlRowContainer.Controls.Clear();
+                this.pnlRowContainer.SuspendLayout();
             }));
 
             FlashStatusText("Loading page data", Color.Black, Color.Yellow);
+            var rowRange = _paging.CurrentItemRange;
 
-            foreach (var pageDate in GetPageDates())
+            _rows?.ForEach(r => r.Value.DisposeUi());
+            _rows = _docData.PageDates
+                .Where((_, i) => i % _docData.PageSkipInterval == 0)
+                .Skip(rowRange.Min)
+                .Take(rowRange.Count)
+                .ToDictionary(
+                    x => x.Key,
+                    x => RowDataFromPageData(x.Key, x.Value));
+
+            Debug.WriteLine($"Reading rows starting {rowRange.Min}, taking {rowRange.Count} items.");
+            var keys = _docData.PageDates
+                .Where((_, i) => i % _docData.PageSkipInterval == 0)
+                .Select(x => x.Key)
+                .Skip(rowRange.Min)
+                .Take(rowRange.Count)
+                .ToList();
+            Debug.WriteLine(string.Join(", ", keys));
+
+            Application.DoEvents();
+
+            this.pnlRowContainer.Invoke((Action)(() =>
             {
-                var row = new RowData(pageDate.Key, pageDate.Value, _docData.DateFormatter);
+                var rowCtls = _rows.Values.Select(CreateRow).ToArray();
+                this.pnlRowContainer.Controls.AddRange(rowCtls);
+                this.pnlRowContainer.ResumeLayout();
+                this.pnlOptions.Enabled = true;
 
-                // TODO: Testing/ REMOVE
-                if (row.Index < 100) continue;
-
-                _rows[row.Index] = row;
-
-                this.tableContainer.Invoke((Action)(() =>
-                {
-                    AddRowControls(
-                        row.Index,
-                        CreatePageLabel(row),
-                        CreatePicture(row),
-                        CreateControlPanel(row));
-                    Application.DoEvents();
-                }));
-            }
-
-            _imagePopCanceler = new CancellationTokenSource();
-            ThreadPool.QueueUserWorkItem(PopulateImages, _imagePopCanceler.Token);
+                Application.DoEvents();
+                //this.pnlPagedRowContainer.Location = Point.Empty;
+            }));
 
             _isPopulating = false;
             FlashStatusText("Page data successfully loaded", Color.Black, Color.LightGreen, 2000);
-
-            this.tableContainer.Invoke((Action)(() =>
-            {
-                this.tableContainer.ResumeLayout();
-                this.pnlOptions.Enabled = true;
-            }));
-
-            // LOCAL HELPER FUNCTIONS
-
-            IEnumerable<KeyValuePair<int, PageDateStatus>> GetPageDates()
-            {
-                return _docData.PageDates
-                .Take(_baseImage.GetFrameCount(FrameDimension.Page))
-                .Where((x, ii) => ii % _docData.PageSkipInterval == 0)
-                .ToList();
-            }
-
-            #region UI Creation
-
-            void PopulateImages(object state)
-            {
-                var token = (CancellationToken)state;
-                _rows.Values
-                    .Where(_ => !token.IsCancellationRequested)
-                    .ForEach(PopulateImage);
-            }
-
-            void PopulateImage(RowData row)
-            {
-                Image scaledImg = null;
-                try
-                {
-                    scaledImg = _imageCreator.Zoom(_baseImage, row.Index)
-                        ?? throw new Exception();
-                }
-                catch (Exception ex)
-                {
-                    Debug.Write("Error generating preview image: " + ex.Message);
-                    scaledImg = CreateErrorImage();
-                }
-                finally
-                {
-                    if (!row.Picture.IsDisposed)
-                    {
-                        row.Picture.Invoke((Action)(() => row.Picture.Image = scaledImg));
-                    }
-                }
-            }
-
-            Bitmap CreateErrorImage()
-            {
-                var errorImg = new Bitmap(200, 200, PixelFormat.Format24bppRgb);
-                using (var g = Graphics.FromImage(errorImg))
-                using (var brush = new SolidBrush(Color.Black))
-                {
-                    g.Clear(Color.Red);
-                    g.DrawString("Error", Form.DefaultFont, brush, PointF.Empty);
-                }
-                return errorImg;
-            }
-
-            void AddRowControls(int row, params Control[] controls)
-            {
-                void AddRow(Control control, int col)
-                {
-                    this.tableContainer.Controls.Add(control, col, row);
-                    Application.DoEvents();
-                }
-
-                this.tableContainer.Invoke((Action)(() => controls.ForEach(AddRow)));
-            }
-
-            Label CreatePageLabel(RowData row) => new Label { Text = $"{row.Index}" };
-
-            DateTimePicker CreatePageDatePicker(RowData row)
-            {
-                var picker = new DateTimePicker()
-                {
-                    Width = 500,
-                    ShowCheckBox = true,
-                    Tag = row,
-                };
-                picker.ValueChanged += DatePicker_ValueChanged;
-                picker.KeyDown += Picker_KeyDown;
-                return picker;
-            }
-
-            PictureBox CreatePicture(RowData row)
-            {
-                row.Picture = new PictureBox()
-                {
-                    Padding = new Padding(50),
-                    SizeMode = PictureBoxSizeMode.AutoSize,
-                    Tag = row,
-                };
-                row.Picture.DoubleClick += PicDoc_DoubleClick;
-                return row.Picture;
-            }
-
-            Panel CreateControlPanel(RowData row)
-            {
-                var pnlControls = new FlowLayoutPanel()
-                {
-                    FlowDirection = FlowDirection.TopDown,
-                    AutoSize = true,
-                    Dock = DockStyle.Fill,
-                    BackColor = Color.White,
-                };
-
-                var btnDecrement = new Button()
-                {
-                    Text = "◀ Decrement",
-                    AutoSize = true,
-                };
-
-                btnDecrement.Click += async (s, e) => await IncrementAndSave(row, this.incselManual.Decrement);
-
-                var btnIncrement = new Button()
-                {
-                    Text = "Increment ▶",
-                    AutoSize = true,
-                };
-                btnIncrement.Click += async (s, e) => await IncrementAndSave(row, this.incselManual.Increment);
-
-                var pnlIncrement = new FlowLayoutPanel()
-                {
-                    FlowDirection = FlowDirection.LeftToRight,
-                    AutoSize = true,
-                };
-
-                pnlIncrement.Controls.Add(btnDecrement);
-                pnlIncrement.Controls.Add(btnIncrement);
-
-                pnlControls.Controls.Add(pnlIncrement);
-
-                row.TrashToggle = new CheckBox()
-                {
-                    AutoSize = true,
-                    Text = "Trash"
-                };
-                row.TrashToggle.CheckedChanged += async (s, e) => await SetTrash(row);
-                pnlControls.Controls.Add(row.TrashToggle);
-
-                row.DatePicker = CreatePageDatePicker(row);
-                pnlControls.Controls.Add(row.DatePicker);
-
-                var btnSetSubsequent = new Button
-                {
-                    Text = "Autofill AutoIncrement fields above",
-                    AutoSize = true,
-                };
-                btnSetSubsequent.Click += (s, o) =>
-                {
-                    this.numAutoIncrementPageStart.Value = row.Index;
-                    if (row.Status.HasDate)
-                    {
-                        this.dateAutoIncrementStart.Value = row.Date.Value;
-                    }
-                    this.dateAutoIncrementStart.Checked = row.Status.HasDate;
-
-                    FlashStatusText("Updated Auto-increment fields", 2000);
-                };
-                pnlControls.Controls.Add(btnSetSubsequent);
-
-                ProgrammaticallyRefreshRow(row);
-
-                return pnlControls;
-            }
-
-            #endregion UI Creation
-
-            #region UI Handlers
-
-            async Task IncrementAndSave(RowData row, Func<DateTime, DateTime> incrementer)
-            {
-                PageDateStatus StatusIncrementer(PageDateStatus oldStatus)
-                {
-                    if (oldStatus.IsTrash) return PageDateStatus.Trash;
-                    if (!oldStatus.HasDate) return PageDateStatus.Undated;
-                    return incrementer(oldStatus.Date.Value);
-                }
-
-                if (this.rbIncrementImplicitlySetPages.Checked)
-                {
-                    ModifyRelatedPages(row, StatusIncrementer);
-                }
-                else
-                {
-                    ModifyAllSubsequentPages(row, StatusIncrementer);
-                }
-
-                await SaveAsync();
-            }
-
-            async Task SetTrash(RowData row)
-            {
-                _docData.PageDates[row.Index] =
-                    row.TrashToggle.Checked
-                        ? PageDateStatus.Trash
-                        : PageDateStatus.Undated;
-                RefreshRelatedRowUi(row.Index);
-                await SaveAsync();
-            }
-
-            async void DatePicker_ValueChanged(object sender, EventArgs e)
-            {
-                // Avoid triggering handler when manually updating value
-                if (_isPopulating) return;
-
-                var picker = (DateTimePicker)sender;
-                var row = (RowData)picker.Tag;
-                SetImplicitlyConnectedPages(row, row.DatePicker.GetDate());
-                await SaveAsync();
-            }
-
-            void Picker_KeyDown(object sender, KeyEventArgs e)
-            {
-                var picker = (DateTimePicker)sender;
-                var row = (RowData)picker.Tag;
-
-                switch (e.KeyCode)
-                {
-                    case Keys.Enter:
-                        if (!_rows.TryGetValue(row.Index + 1, out RowData nextRow)) return;
-                        nextRow.DatePicker.Select();
-                        break;
-                }
-            }
-
-            void PicDoc_DoubleClick(object sender, EventArgs e)
-            {
-                var pic = sender as PictureBox;
-                var row = pic.Tag as RowData;
-
-                var lbl = new Label()
-                {
-                    Text = "Currently Viewing",
-                    ForeColor = Color.DarkRed,
-                    Font = new Font(
-                        FontFamily.GenericSansSerif,
-                        14f,
-                        FontStyle.Bold,
-                        GraphicsUnit.Point),
-                    AutoSize = true,
-                };
-                row.DatePicker.Parent.Controls.Add(lbl);
-
-                var frm = new frmImageViewer(_docData.ImagePath, row.Index);
-
-                async void RemoveIndicator(object s, EventArgs args)
-                {
-                    await Task.Delay(3000);
-                    lbl.Parent.Controls.Remove(lbl);
-                    lbl.Dispose();
-                    frm.FormClosed -= RemoveIndicator;
-                }
-
-                frm.FormClosed += RemoveIndicator;
-
-                frm.Show();
-            }
-
-            #endregion UI Handlers
         }
+
+        private RowData RowDataFromPageData(int index, PageDateStatus status) =>
+            new RowData(index, status, _docData.DateFormatter);
+
+        #region UI Creation
+
+        private Image GetRowImage(RowData row)
+        {
+            Image scaledImg;
+            try
+            {
+                scaledImg = _imageCreator.Zoom(_baseImage, row.Index) ?? throw new Exception();
+            }
+            catch (Exception ex)
+            {
+                Debug.Write("Error generating preview image: " + ex.Message);
+                scaledImg = CreateErrorImage();
+            }
+            return scaledImg;
+        }
+
+        private static Bitmap CreateErrorImage()
+        {
+            var errorImg = new Bitmap(200, 200, PixelFormat.Format24bppRgb);
+            using (var g = Graphics.FromImage(errorImg))
+            using (var brush = new SolidBrush(Color.Black))
+            {
+                g.Clear(Color.Red);
+                g.DrawString("Error", Form.DefaultFont, brush, PointF.Empty);
+            }
+            return errorImg;
+        }
+
+        private Panel CreateRow(RowData row)
+        {
+            var pnlRow = new FlowLayoutPanel()
+            {
+                AutoSize = true,
+                Margin = new Padding(20),
+                WrapContents = false,
+                FlowDirection = FlowDirection.LeftToRight,
+                Tag = row,
+            };
+
+            pnlRow.Controls.AddRange(new Control[] {
+                CreatePageLabel(row),
+                CreatePicture(row),
+                CreateControlPanel(row)
+            });
+
+            return pnlRow;
+        }
+
+        private static Label CreatePageLabel(RowData row) => new Label { Text = $"{row.Index}" };
+
+        private DateTimePicker CreatePageDatePicker(RowData row)
+        {
+            var picker = new DateTimePicker()
+            {
+                Width = 500,
+                ShowCheckBox = true,
+                ShowUpDown = true,
+                Tag = row,
+            };
+            picker.ValueChanged += DatePicker_ValueChanged;
+            picker.KeyDown += Picker_KeyDown;
+            return picker;
+        }
+
+        private PictureBox CreatePicture(RowData row)
+        {
+            row.Picture = new PictureBox()
+            {
+                Padding = new Padding(50),
+                SizeMode = PictureBoxSizeMode.AutoSize,
+                Tag = row,
+                Image = GetRowImage(row),
+            };
+            row.Picture.DoubleClick += PicDoc_DoubleClick;
+            return row.Picture;
+        }
+
+        private Panel CreateControlPanel(RowData row)
+        {
+            var pnlControls = new FlowLayoutPanel()
+            {
+                FlowDirection = FlowDirection.TopDown,
+                AutoSize = true,
+                Dock = DockStyle.Fill,
+                BackColor = Color.White,
+            };
+
+            var btnDecrement = new Button()
+            {
+                Text = Strings.DecrementButtonLabel,
+                AutoSize = true,
+            };
+
+            btnDecrement.Click += async (s, e) => await IncrementAndSave(row, this.incselManual.Decrement);
+
+            var btnIncrement = new Button()
+            {
+                Text = Strings.IncrementButtonLabel,
+                AutoSize = true,
+            };
+            btnIncrement.Click += async (s, e) => await IncrementAndSave(row, this.incselManual.Increment);
+
+            var pnlIncrement = new FlowLayoutPanel()
+            {
+                FlowDirection = FlowDirection.LeftToRight,
+                AutoSize = true,
+            };
+
+            pnlIncrement.Controls.Add(btnDecrement);
+            pnlIncrement.Controls.Add(btnIncrement);
+
+            pnlControls.Controls.Add(pnlIncrement);
+
+            row.TrashToggle = new CheckBox()
+            {
+                AutoSize = true,
+                Text = Strings.DocPageTrashButtonLabel
+            };
+            row.TrashToggle.CheckedChanged += async (s, e) => await SetTrash(row);
+            pnlControls.Controls.Add(row.TrashToggle);
+
+            row.DatePicker = CreatePageDatePicker(row);
+            pnlControls.Controls.Add(row.DatePicker);
+
+            var btnSetSubsequent = new Button
+            {
+                Text = Strings.AutofillDateButtonLabel,
+                AutoSize = true,
+            };
+            btnSetSubsequent.Click += (s, o) =>
+            {
+                this.numAutoIncrementPageStart.Value = row.Index;
+                if (row.Status.HasDate)
+                {
+                    this.dateAutoIncrementStart.Value = row.Date.Value;
+                }
+                this.dateAutoIncrementStart.Checked = row.Status.HasDate;
+
+                FlashStatusText("Updated Auto-increment fields", 2000);
+            };
+            pnlControls.Controls.Add(btnSetSubsequent);
+
+            ProgrammaticallyRefreshRow(row);
+
+            return pnlControls;
+        }
+
+        #endregion UI Creation
+
+        #region UI Handlers
+
+        private async Task IncrementAndSave(RowData row, Func<DateTime, DateTime> incrementer)
+        {
+            PageDateStatus StatusIncrementer(PageDateStatus oldStatus)
+            {
+                if (oldStatus.IsTrash) return PageDateStatus.Trash;
+                if (!oldStatus.HasDate) return PageDateStatus.Undated;
+                return incrementer(oldStatus.Date.Value);
+            }
+
+            if (this.rbIncrementImplicitlySetPages.Checked)
+            {
+                ModifyRelatedPages(row.Index, StatusIncrementer);
+            }
+            else
+            {
+                ModifyAllSubsequentPages(row, StatusIncrementer);
+            }
+
+            await SaveAsync();
+        }
+
+        private async Task SetTrash(RowData row)
+        {
+            _docData.PageDates[row.Index] =
+                row.TrashToggle.Checked
+                    ? PageDateStatus.Trash
+                    : PageDateStatus.Undated;
+            RefreshRelatedRowUi(row.Index);
+            await SaveAsync();
+        }
+
+        private async void DatePicker_ValueChanged(object sender, EventArgs e)
+        {
+            // Avoid triggering handler when manually updating value
+            if (_isPopulating) return;
+
+            var picker = (DateTimePicker)sender;
+            var row = (RowData)picker.Tag;
+            SetImplicitlyConnectedPages(row, row.DatePicker.GetDate());
+            await SaveAsync();
+        }
+
+        private void Picker_KeyDown(object sender, KeyEventArgs e)
+        {
+            var picker = (DateTimePicker)sender;
+            var row = (RowData)picker.Tag;
+
+            RowData IncrementRow(int index, int amount) =>
+                _rows.TryGetValue(
+                    index + amount * _docData.PageSkipInterval,
+                    out var nextRow)
+                ? nextRow
+                : null;
+
+            switch (e.KeyCode)
+            {
+                case Keys.End:
+                case Keys.Enter:
+                    var nextRow = IncrementRow(row.Index, 1);
+                    if (nextRow == null) return;
+
+                    var downScrollTarget = nextRow.Picture.Parent;
+                    this.pnlMain.ScrollControlIntoView(downScrollTarget);
+                    nextRow.DatePicker.Select();
+                    e.SuppressKeyPress = true;
+                    break;
+
+                case Keys.Home:
+                    var prevRow = IncrementRow(row.Index, -1);
+                    if (prevRow == null) return;
+                    var upScrollTarget = prevRow.Picture.Parent;
+                    this.pnlMain.ScrollControlIntoView(upScrollTarget);
+                    prevRow.DatePicker.Select();
+                    e.SuppressKeyPress = true;
+                    break;
+            }
+        }
+
+        private void PicDoc_DoubleClick(object sender, EventArgs e)
+        {
+            var pic = sender as PictureBox;
+            var row = pic.Tag as RowData;
+
+            var lbl = new Label()
+            {
+                Text = Strings.ViewingFullSizeDocButtonLabel,
+                ForeColor = Color.DarkRed,
+                Font = new Font(
+                    FontFamily.GenericSansSerif,
+                    14f,
+                    FontStyle.Bold,
+                    GraphicsUnit.Point),
+                AutoSize = true,
+            };
+            row.DatePicker.Parent.Controls.Add(lbl);
+
+            var frm = new frmImageViewer(_docData.ImagePath, row.Index);
+
+            async void FormClosed(object s, EventArgs args)
+            {
+                await Task.Delay(3000);
+                lbl?.Parent?.Controls.Remove(lbl);
+                lbl?.Dispose();
+                frm.FormClosed -= FormClosed;
+                frm.Dispose();
+                _viewerReferences.Remove(frm);
+            }
+
+            frm.FormClosed += FormClosed;
+            frm.Show();
+            _viewerReferences.Add(frm);
+        }
+
+        private HashSet<frmImageViewer> _viewerReferences = new HashSet<frmImageViewer>();
+
+        #endregion UI Handlers
 
         private async Task PersistPageSkipAsync()
         {
@@ -405,13 +525,17 @@ namespace DocumentScanner.UserControls
             Func<PageDateStatus, PageDateStatus> modifier)
         {
             // Ensure the row/page date being set is explicitly set first
-            _docData.PageDates[row.Index] = row.Status;
-            var rows = _docData.PageDates.ExplicitlySetValues
-                .Where(x => x.Key >= row.Index)
-                .Select(x => _rows[x.Key])
+            _docData.PageDates.Set(row.Index, row.Status);
+
+            var subsequentRowIndexes = _docData.PageDates.ExplicitlySetValues
+                .Select(x => x.Key)
+                .Where(i => i >= row.Index)
                 .ToList();
 
-            rows.ForEach(r => ModifyRelatedPages(r, modifier));
+            foreach (int idx in subsequentRowIndexes)
+            {
+                ModifyRelatedPages(idx, modifier);
+            }
         }
 
         /// <summary>
@@ -421,12 +545,18 @@ namespace DocumentScanner.UserControls
         /// <param name="row">The row with the current <see cref="RowData.Status"/> to use.</param>
         /// <param name="increment">True to increment, false to decrement.</param>
         private void ModifyRelatedPages(
-            RowData row,
+            int rowIndex,
             Func<PageDateStatus, PageDateStatus> modifier)
         {
-            row.Status = modifier(row.Status);
-            _docData.PageDates[row.Index] = row.Status;
-            RefreshRelatedRowUi(row.Index);
+            var oldStatus = _docData.PageDates[rowIndex];
+            var newStatus = modifier(oldStatus);
+            _docData.PageDates[rowIndex] = newStatus;
+            if (_rows.ContainsKey(rowIndex))
+            {
+                var row = _rows[rowIndex];
+                row.Status = newStatus;
+                RefreshRelatedRowUi(row.Index);
+            }
         }
 
         private void RefreshRelatedRowUi(int startIndex)
@@ -442,7 +572,7 @@ namespace DocumentScanner.UserControls
 
         private void SetImplicitlyConnectedPages(RowData row, DateTime? date)
         {
-            ModifyRelatedPages(row, _ => date);
+            ModifyRelatedPages(row.Index, _ => date);
         }
 
         private void UpdateAllDateLabels(object sender, EventArgs e)
@@ -499,7 +629,7 @@ namespace DocumentScanner.UserControls
             }));
         }
 
-        internal class RowData
+        internal class RowData : IDisposable
         {
             public int Index { get; }
             public PictureBox Picture { get; set; }
@@ -513,7 +643,6 @@ namespace DocumentScanner.UserControls
 
             public CheckBox TrashToggle { get; set; }
             public DateFormatter Formatter { get; }
-            public CheckBox cbHasDate { get; set; }
             public DateTimePicker DatePicker { get; set; }
 
             public RowData(int index, PageDateStatus status, DateFormatter formatter)
@@ -523,10 +652,10 @@ namespace DocumentScanner.UserControls
                 this.Formatter = formatter;
             }
 
-            private readonly Font _trashFont =
+            private readonly static Font _trashFont =
                 new Font(FontFamily.GenericSansSerif, 16f, FontStyle.Bold);
 
-            private readonly Font _activeFont =
+            private readonly static Font _activeFont =
                 new Font(FontFamily.GenericSansSerif, 12f, FontStyle.Regular);
 
             public void RefreshUi()
@@ -553,6 +682,29 @@ namespace DocumentScanner.UserControls
                     TrashToggle.Font = isTrash ? _trashFont : _activeFont;
                 }
             }
+
+            public void DisposeUi()
+            {
+                if (this.Picture == null) return;
+
+                var img = this.Picture?.Image;
+                this.Picture?.Dispose();
+                this.Picture = null;
+                img?.Dispose();
+
+                this.TrashToggle?.Dispose();
+                this.TrashToggle = null;
+
+                this.DatePicker?.Dispose();
+                this.DatePicker = null;
+            }
+
+            public void Dispose()
+            {
+                DisposeUi();
+                //_trashFont.Dispose();
+                //_activeFont.Dispose();
+            }
         }
 
         #region UI Handlers
@@ -568,7 +720,7 @@ namespace DocumentScanner.UserControls
                 return;
             }
 
-            string confirmationMsg = $"Auto increment all pages starting with {(currentDate.HasValue ? currentDate.Value.ToString("d") : "<Undated>")} at page {firstPage}";
+            string confirmationMsg = $"Auto increment all pages starting with {(currentDate.HasValue ? currentDate.Value.ToString("d", CultureInfo.InvariantCulture) : "<Undated>")} at page {firstPage}";
             if (!FileExtensions.ConfirmAction(confirmationMsg)) return;
 
             var affectedRows = _rows.Values.Where(x => x.Index >= firstPage);
@@ -586,15 +738,39 @@ namespace DocumentScanner.UserControls
 
         private async void btnRefresh_Click(object sender, EventArgs e)
         {
-            await RefreshTableAsync();
+            await ResetPaging();
         }
 
         private async void btnResetDates_Click(object sender, EventArgs e)
         {
             _docData.PageDates.Clear();
-            await Task.Run(RefreshTableAsync);
+            await ResetPaging();
+        }
+
+        /// <summary>
+        /// Updates paging parameters and displays the first page
+        /// </summary>
+        /// <returns></returns>
+        private async Task ResetPaging()
+        {
+            await UpdatePagingAwait();
+            await SetPageAsync(0);
         }
 
         #endregion UI Handlers
+
+        private async void btnPreviousPage_Click(object sender, EventArgs e)
+        {
+            await SetPageAsync(_paging.CurrentPage - 1);
+        }
+
+        private async void btnNextPage_Click(object sender, EventArgs e)
+        {
+            await SetPageAsync(_paging.CurrentPage + 1);
+        }
+
+        private void numSkipInterval_ValueChanged(object sender, EventArgs e)
+        {
+        }
     }
 }

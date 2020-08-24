@@ -3,6 +3,7 @@ using DocumentScanner.NapsOptions.Keys;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -42,6 +43,11 @@ namespace DocumentScanner
 
         public ScanResults(Process process, bool redirected)
         {
+            if (process is null)
+            {
+                throw new ArgumentNullException(nameof(process));
+            }
+
             Output = redirected ? process.StandardOutput.ReadToEnd() : "";
             Error = redirected ? process.StandardError.ReadToEnd() : "";
             ExitCode = process.ExitCode;
@@ -77,7 +83,7 @@ namespace DocumentScanner
     {
         public string NapsConsolePath { get; set; }
 
-        public readonly NapsOptionCollection Args = new NapsOptionCollection();
+        public NapsOptionCollection Args { get; } = new NapsOptionCollection();
 
         private bool _redirectOutput = true;
 
@@ -108,6 +114,7 @@ namespace DocumentScanner
 
         private static bool IsPathValid(string path)
         {
+            if (string.IsNullOrEmpty(path)) return false;
             // https://stackoverflow.com/questions/422090/in-c-sharp-check-that-filename-is-possibly-valid-not-that-it-exists
             FileInfo fi = null;
             try
@@ -130,9 +137,7 @@ namespace DocumentScanner
         {
             if (!IsPathValid(path))
             {
-                throw new ArgumentException(
-                    nameof(path),
-                    "The specified path is not valid.");
+                throw new ArgumentException("The specified path is not valid.", nameof(path));
             }
             return AddStringOption(Keys.Main.Output, path);
         }
@@ -163,21 +168,26 @@ namespace DocumentScanner
 
         public Naps2ScanJob SetEmailSettings(EmailSettings settings)
         {
+            if (settings is null)
+            {
+                throw new ArgumentNullException(nameof(settings));
+            }
+
             var options = new List<INapsOption>
             {
-                new StringOption(Email.To, settings.To),
-                new StringOption(Email.Cc, settings.Cc),
-                new StringOption(Email.Bcc, settings.Bcc),
-                new StringOption(Email.Subject, settings.Subject)
+                new StringOption(EmailFlags.To, settings.To),
+                new StringOption(EmailFlags.Cc, settings.Cc),
+                new StringOption(EmailFlags.Bcc, settings.Bcc),
+                new StringOption(EmailFlags.Subject, settings.Subject)
             };
 
             if (settings.AutoSend)
             {
-                options.Add(new BooleanOption(Email.AutoSend));
+                options.Add(new BooleanOption(EmailFlags.AutoSend));
             }
             if (settings.SilentSend)
             {
-                options.Add(new BooleanOption(Email.SilentSend));
+                options.Add(new BooleanOption(EmailFlags.SilentSend));
             }
 
             options.ForEach(Args.Add);
@@ -186,31 +196,41 @@ namespace DocumentScanner
 
         public Naps2ScanJob PdfSettings(PdfSettings settings)
         {
+            if (settings is null)
+            {
+                throw new ArgumentNullException(nameof(settings));
+            }
+
             // Metadata
             var customMeta = settings.UsesSavedMetadata;
-            AddBooleanOption(Pdf.UseSavedMetadata, customMeta);
-            AddStringOption(Pdf.Title, settings.Title, !customMeta);
-            AddStringOption(Pdf.Author, settings.Author, !customMeta);
-            AddStringOption(Pdf.Subject, settings.Subject, !customMeta);
-            AddStringOption(Pdf.Keywords, settings.Keywords, !customMeta);
+            AddBooleanOption(PdfFlags.UseSavedMetadata, customMeta);
+            AddStringOption(PdfFlags.Title, settings.Title, !customMeta);
+            AddStringOption(PdfFlags.Author, settings.Author, !customMeta);
+            AddStringOption(PdfFlags.Subject, settings.Subject, !customMeta);
+            AddStringOption(PdfFlags.Keywords, settings.Keywords, !customMeta);
 
             // Encryption
-            AddBooleanOption(Pdf.UseSavedEncryptConfig, settings.UseSavedEncryptConfig);
+            AddBooleanOption(PdfFlags.UseSavedEncryptConfig, settings.UseSavedEncryptConfig);
             AddStringOption(
-                Pdf.EncryptConfig,
+                PdfFlags.EncryptConfig,
                 settings.EncryptConfig,
                 enabled: !string.IsNullOrWhiteSpace(settings.EncryptConfig));
 
             return this;
         }
 
-        public Naps2ScanJob InstallOcr(string language = "ocr-eng")
+        //public Naps2ScanJob InstallOcr(string language = "ocr-eng")
+        //{
+        //    if (!language.StartsWith("ocr-"))
+        //    {
+        //        throw new ArgumentException(nameof(language), "Language module must be of the form 'ocr-eng'.");
+        //    }
+        //    return AddStringOption(Main.Install, language);
+        //}
+
+        public Naps2ScanJob Install(string module)
         {
-            if (!language.StartsWith("ocr-"))
-            {
-                throw new ArgumentException(nameof(language), "Language module must be of the form 'ocr-eng'.");
-            }
-            return AddStringOption(Main.Install, language);
+            return AddStringOption(Main.Install, module);
         }
 
         /// <summary>
@@ -221,9 +241,9 @@ namespace DocumentScanner
         /// <returns></returns>
         public Naps2ScanJob ToggleOcr(bool value, string language = "eng")
         {
-            var disable = new BooleanOption(Ocr.OcrDisable);
+            var disable = new BooleanOption(OcrFlags.OcrDisable);
             // Implies enabled
-            var lang = new StringOption(Ocr.OcrLang, language);
+            var lang = new StringOption(OcrFlags.OcrLang, language);
 
             Args.Toggle(lang, value);
             Args.Toggle(disable, !value);
@@ -238,12 +258,16 @@ namespace DocumentScanner
             {
                 throw new ArgumentOutOfRangeException(nameof(quality), $"Value must be from {min}-{max}, but was {quality}");
             }
-            return AddStringOption(Quality.JpegQuality, quality.ToString(), false);
+            return AddStringOption(
+                Quality.JpegQuality,
+                quality.ToString(CultureInfo.InvariantCulture),
+                false);
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Globalization", "CA1308:Normalize strings to uppercase", Justification = "<Pending>")]
         public Naps2ScanJob TiffCompression(TiffCompressionType method)
         {
-            var methodArg = method.ToString().ToLower();
+            var methodArg = method.ToString().ToLowerInvariant();
             return AddStringOption(Quality.TiffCompression, methodArg, false);
         }
 
@@ -282,7 +306,7 @@ namespace DocumentScanner
                 throw new ArgumentOutOfRangeException(nameof(n), "Value must be non-negative.");
             }
 
-            return AddStringOption(Main.NumScans, n.ToString(), false);
+            return AddStringOption(Main.NumScans, n.ToString(CultureInfo.InvariantCulture), false);
         }
 
         public Naps2ScanJob Verbose()

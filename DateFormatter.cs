@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Runtime.InteropServices;
 
@@ -67,7 +68,7 @@ namespace DocumentScanner
 
         public string Format(DateTime? date) =>
             date.HasValue
-            ? date.Value.ToString(CurrentFormat)
+            ? date.Value.ToString(CurrentFormat, DateTimeFormatInfo.InvariantInfo)
             : "undated";
     }
 }

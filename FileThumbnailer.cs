@@ -6,13 +6,12 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
 namespace DocumentScanner
 {
-    [Obsolete("There aren't many good free, fast pdf->image conversion libraries. "
-       + "Use this even though it's slow or scan to and preview using TIFF images.", false)]
     internal abstract class FileThumbnailer : IDisposable
     {
         public string Path { get; }
@@ -35,7 +34,7 @@ namespace DocumentScanner
 
         public static FileThumbnailer FromFile(string path, Size size)
         {
-            switch (System.IO.Path.GetExtension(path).ToUpper())
+            switch (System.IO.Path.GetExtension(path).ToUpper(CultureInfo.InvariantCulture))
             {
                 case ".PDF":
                     return new PdfThumbnailer(path, size);

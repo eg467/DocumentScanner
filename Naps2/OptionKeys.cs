@@ -94,7 +94,7 @@ namespace DocumentScanner.NapsOptions.Keys
         public const string TiffCompression = "--tiffcomp  ";
     }
 
-    public static class Email
+    public static class EmailFlags
     {
         public const string To = "--to";
         public const string Cc = "--cc";
@@ -105,7 +105,7 @@ namespace DocumentScanner.NapsOptions.Keys
         public const string SilentSend = "--silentsend";
     }
 
-    public static class Pdf
+    public static class PdfFlags
     {
         public const string Title = "--pdftitle";
         public const string Author = "--pdfauthor";
@@ -116,7 +116,7 @@ namespace DocumentScanner.NapsOptions.Keys
         public const string UseSavedEncryptConfig = "--usesavedencryptconfig";
     }
 
-    public static class Ocr
+    public static class OcrFlags
     {
         /// <summary>
         /// Specifies the three-letter code for the language used for OCR (e.g. 'eng' for English, 'fra' for French, etc.). Multiple codes can be separated by the '+' symbol. Implies --enableocr.

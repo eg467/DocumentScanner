@@ -3,7 +3,6 @@ using iText.Layout;
 using Newtonsoft.Json;
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Data;
 using System.IO;
 using System.Threading.Tasks;
@@ -18,7 +17,7 @@ namespace DocumentScanner
 
         public Image CreateImage() => Image.FromFile(ImagePath);
 
-        public RangedList<PageDateStatus> PageDates = new RangedList<PageDateStatus>(PageDateStatus.Undated);
+        public RangedList<PageDateStatus> PageDates { get; } = new RangedList<PageDateStatus>(PageDateStatus.Undated);
         public DateFormatter DateFormatter { get; set; } = new DateFormatter();
         public int PageSkipInterval { get; set; } = 1;
 
@@ -31,91 +30,6 @@ namespace DocumentScanner
 
             ImagePath = imagePath;
         }
-    }
-
-    public class PageDateStatus : IEquatable<PageDateStatus>, IComparer<PageDateStatus>, IComparable<PageDateStatus>
-    {
-        public DateTime? Date { get; set; }
-        private bool _trash = false;
-
-        public bool IsTrash
-        {
-            get => _trash;
-            set
-            {
-                _trash = value;
-                if (value)
-                {
-                    Date = null;
-                }
-            }
-        }
-
-        public bool HasDate => Date.HasValue;
-
-        public bool Equals(PageDateStatus other) =>
-            this.IsTrash == other.IsTrash && this.Date == other.Date;
-
-        public override int GetHashCode()
-        {
-            int hashCode = -342212554;
-            hashCode = hashCode * -1521134295 + this.Date.GetHashCode();
-            hashCode = hashCode * -1521134295 + this.IsTrash.GetHashCode();
-            return hashCode;
-        }
-
-        public PageDateStatus()
-        {
-        }
-
-        public PageDateStatus(DateTime? date, bool isTrash = false)
-        {
-            Date = date;
-            IsTrash = isTrash;
-        }
-
-        public static PageDateStatus FromDate(DateTime? date) => new PageDateStatus(date);
-
-        public static implicit operator PageDateStatus(DateTime? value) =>
-            new PageDateStatus(value);
-
-        public static implicit operator PageDateStatus(DateTime value) =>
-            new PageDateStatus(value);
-
-        public static PageDateStatus Trash => new PageDateStatus(null, true);
-
-        public static PageDateStatus Undated => new PageDateStatus(null, false);
-
-        public override string ToString() =>
-            IsTrash
-                ? "Unused"
-                : Date.HasValue
-                    ? Date.Value.ToString("d")
-                    : "Undated";
-
-        public int Compare(PageDateStatus x, PageDateStatus y)
-        {
-            if (x == null)
-            {
-                return y == null ? 0 : -1;
-            }
-            else if (y == null)
-            {
-                return 1;
-            }
-
-            // Trash appears after useful pages
-            if (x.IsTrash && !y.IsTrash) return 1;
-            if (!x.IsTrash && y.IsTrash) return -1;
-
-            // Undated appears before dated
-            int? dateComparison = x.Date?.CompareTo(y.Date);
-            if (dateComparison.HasValue) return dateComparison.Value;
-            // x.Date == null
-            return y.Date.HasValue ? -1 : 0;
-        }
-
-        public int CompareTo(PageDateStatus other) => Compare(this, other);
     }
 
     public interface IDocumentSaver
@@ -148,9 +62,10 @@ namespace DocumentScanner
         public const string Extension = ".pagedata";
         public const string SourceExtension = ".tiff";
 
-        public string ImageToProjectPath(string imagePath)
+        public static string ImageToProjectPath(string imagePath)
         {
-            if (!imagePath.EndsWith(SourceExtension, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(imagePath)
+                || !imagePath.EndsWith(SourceExtension, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"The selected file must be a {SourceExtension} file.");
             }
@@ -158,9 +73,10 @@ namespace DocumentScanner
             return $"{imagePath}{Extension}";
         }
 
-        public string ProjectToImagePath(string projectPath)
+        public static string ProjectToImagePath(string projectPath)
         {
-            if (!projectPath.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+            if (string.IsNullOrEmpty(projectPath)
+                || !projectPath.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
             {
                 throw new ArgumentException($"The selected file must be a {Extension} file.");
             }
@@ -218,6 +134,11 @@ namespace DocumentScanner
         /// </param>
         public SerializedMetadata Save(DocumentMetadata docData, string projectPath = null)
         {
+            if (docData is null)
+            {
+                throw new ArgumentNullException(nameof(docData));
+            }
+
             projectPath = string.IsNullOrEmpty(projectPath) ? ImageToProjectPath(docData.ImagePath) : projectPath;
             var serializedData = JsonConvert.SerializeObject(docData);
             File.WriteAllText(projectPath, serializedData);
@@ -230,6 +151,11 @@ namespace DocumentScanner
         /// <returns></returns>
         public SerializedMetadata Load(string projectOrImagePath)
         {
+            if (string.IsNullOrEmpty(projectOrImagePath))
+            {
+                throw new ArgumentNullException(nameof(projectOrImagePath));
+            }
+
             string projectPath = projectOrImagePath;
             // Try to load the project associated with a provided image file.
             if (projectOrImagePath.EndsWith(SourceExtension, StringComparison.OrdinalIgnoreCase))

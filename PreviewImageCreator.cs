@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Diagnostics;
+using System.Diagnostics.Contracts;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -32,10 +34,16 @@ namespace DocumentScanner
         /// </summary>
         public Image Zoom(Image source, int? page = null)
         {
+            if (source is null)
+            {
+                throw new ArgumentNullException(nameof(source));
+            }
             if (page.HasValue)
             {
                 try
                 {
+                    var maxPage = source.GetFrameCount(FrameDimension.Page) - 1;
+                    Debug.WriteLine($"Creating preview for page idx={page.Value}={maxPage}");
                     source.SelectActiveFrame(FrameDimension.Page, page.Value);
                 }
                 catch (ArgumentException ex)

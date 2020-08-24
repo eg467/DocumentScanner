@@ -39,7 +39,10 @@
             this.numAutoIncrementPageStart = new System.Windows.Forms.NumericUpDown();
             this.btnAutoIncrement = new System.Windows.Forms.Button();
             this.pnlMain = new System.Windows.Forms.Panel();
-            this.btnRepaint = new System.Windows.Forms.Button();
+            this.pnlPagedRowContainer = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnPreviousPage = new System.Windows.Forms.Button();
+            this.pnlRowContainer = new System.Windows.Forms.FlowLayoutPanel();
+            this.btnNextPage = new System.Windows.Forms.Button();
             this.pnlOptions.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numSkipInterval)).BeginInit();
             this.pnlIncrementMode.SuspendLayout();
@@ -47,29 +50,29 @@
             this.flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.numAutoIncrementPageStart)).BeginInit();
             this.pnlMain.SuspendLayout();
+            this.pnlPagedRowContainer.SuspendLayout();
             this.SuspendLayout();
             // 
             // tableContainer
             // 
-            this.tableContainer.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
             this.tableContainer.AutoSize = true;
-            this.tableContainer.BackColor = System.Drawing.Color.Transparent;
+            this.tableContainer.BackColor = System.Drawing.Color.DimGray;
             this.tableContainer.ColumnCount = 3;
             this.tableContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
             this.tableContainer.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            this.tableContainer.Dock = System.Windows.Forms.DockStyle.Top;
             this.tableContainer.Location = new System.Drawing.Point(0, 0);
             this.tableContainer.Name = "tableContainer";
             this.tableContainer.RowCount = 1;
             this.tableContainer.RowStyles.Add(new System.Windows.Forms.RowStyle());
-            this.tableContainer.Size = new System.Drawing.Size(1604, 43);
+            this.tableContainer.Size = new System.Drawing.Size(1636, 0);
             this.tableContainer.TabIndex = 0;
+            this.tableContainer.Visible = false;
             // 
             // pnlOptions
             // 
-            this.pnlOptions.Controls.Add(this.btnRepaint);
             this.pnlOptions.Controls.Add(this.btnRefresh);
             this.pnlOptions.Controls.Add(this.lblSkipIntervalRight);
             this.pnlOptions.Controls.Add(this.numSkipInterval);
@@ -123,6 +126,7 @@
             0,
             0,
             0});
+            this.numSkipInterval.ValueChanged += new System.EventHandler(this.numSkipInterval_ValueChanged);
             // 
             // lblSkipIntervalLeft
             // 
@@ -305,7 +309,8 @@
             // pnlMain
             // 
             this.pnlMain.AutoScroll = true;
-            this.pnlMain.BackColor = System.Drawing.Color.DimGray;
+            this.pnlMain.BackColor = System.Drawing.Color.Black;
+            this.pnlMain.Controls.Add(this.pnlPagedRowContainer);
             this.pnlMain.Controls.Add(this.tableContainer);
             this.pnlMain.Dock = System.Windows.Forms.DockStyle.Fill;
             this.pnlMain.Location = new System.Drawing.Point(0, 299);
@@ -313,15 +318,53 @@
             this.pnlMain.Size = new System.Drawing.Size(1636, 1056);
             this.pnlMain.TabIndex = 3;
             // 
-            // btnRepaint
+            // pnlPagedRowContainer
             // 
-            this.btnRepaint.BackColor = System.Drawing.SystemColors.ButtonFace;
-            this.btnRepaint.Location = new System.Drawing.Point(1350, 165);
-            this.btnRepaint.Name = "btnRepaint";
-            this.btnRepaint.Size = new System.Drawing.Size(204, 44);
-            this.btnRepaint.TabIndex = 16;
-            this.btnRepaint.Text = "Repaint";
-            this.btnRepaint.UseVisualStyleBackColor = false;
+            this.pnlPagedRowContainer.AutoSize = true;
+            this.pnlPagedRowContainer.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.pnlPagedRowContainer.Controls.Add(this.btnPreviousPage);
+            this.pnlPagedRowContainer.Controls.Add(this.pnlRowContainer);
+            this.pnlPagedRowContainer.Controls.Add(this.btnNextPage);
+            this.pnlPagedRowContainer.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.pnlPagedRowContainer.Location = new System.Drawing.Point(0, 0);
+            this.pnlPagedRowContainer.Name = "pnlPagedRowContainer";
+            this.pnlPagedRowContainer.Size = new System.Drawing.Size(412, 122);
+            this.pnlPagedRowContainer.TabIndex = 2;
+            // 
+            // btnPreviousPage
+            // 
+            this.btnPreviousPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnPreviousPage.Location = new System.Drawing.Point(3, 3);
+            this.btnPreviousPage.Name = "btnPreviousPage";
+            this.btnPreviousPage.Size = new System.Drawing.Size(406, 52);
+            this.btnPreviousPage.TabIndex = 2;
+            this.btnPreviousPage.Text = "Previous Page";
+            this.btnPreviousPage.UseVisualStyleBackColor = true;
+            this.btnPreviousPage.Click += new System.EventHandler(this.btnPreviousPage_Click);
+            // 
+            // pnlRowContainer
+            // 
+            this.pnlRowContainer.AutoSize = true;
+            this.pnlRowContainer.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.pnlRowContainer.BackColor = System.Drawing.Color.DimGray;
+            this.pnlRowContainer.FlowDirection = System.Windows.Forms.FlowDirection.TopDown;
+            this.pnlRowContainer.Location = new System.Drawing.Point(3, 61);
+            this.pnlRowContainer.MaximumSize = new System.Drawing.Size(1000000000, 1000000000);
+            this.pnlRowContainer.Name = "pnlRowContainer";
+            this.pnlRowContainer.Size = new System.Drawing.Size(0, 0);
+            this.pnlRowContainer.TabIndex = 1;
+            this.pnlRowContainer.WrapContents = false;
+            // 
+            // btnNextPage
+            // 
+            this.btnNextPage.Font = new System.Drawing.Font("Microsoft Sans Serif", 15.85714F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnNextPage.Location = new System.Drawing.Point(3, 67);
+            this.btnNextPage.Name = "btnNextPage";
+            this.btnNextPage.Size = new System.Drawing.Size(406, 52);
+            this.btnNextPage.TabIndex = 3;
+            this.btnNextPage.Text = "Next Page";
+            this.btnNextPage.UseVisualStyleBackColor = true;
+            this.btnNextPage.Click += new System.EventHandler(this.btnNextPage_Click);
             // 
             // BatchPageProcessing
             // 
@@ -343,6 +386,8 @@
             ((System.ComponentModel.ISupportInitialize)(this.numAutoIncrementPageStart)).EndInit();
             this.pnlMain.ResumeLayout(false);
             this.pnlMain.PerformLayout();
+            this.pnlPagedRowContainer.ResumeLayout(false);
+            this.pnlPagedRowContainer.PerformLayout();
             this.ResumeLayout(false);
 
         }
@@ -371,6 +416,9 @@
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label3;
         private System.Windows.Forms.NumericUpDown numAutoIncrementPageStart;
-        private System.Windows.Forms.Button btnRepaint;
+        private System.Windows.Forms.FlowLayoutPanel pnlRowContainer;
+        private System.Windows.Forms.FlowLayoutPanel pnlPagedRowContainer;
+        private System.Windows.Forms.Button btnPreviousPage;
+        private System.Windows.Forms.Button btnNextPage;
     }
 }

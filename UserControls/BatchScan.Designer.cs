@@ -37,6 +37,7 @@
             this.btnScanOneMonthPlusOneDay = new System.Windows.Forms.Button();
             this.grpAdvanceScanning = new System.Windows.Forms.GroupBox();
             this.pnlNextMonthCalendarContainer = new System.Windows.Forms.Panel();
+            this.calNextMonth = new DocumentScanner.UserControls.CustomSizeCalendar();
             this.grpModifyCurrentDate = new System.Windows.Forms.GroupBox();
             this.flowLayoutPanel1 = new System.Windows.Forms.FlowLayoutPanel();
             this.btnBackMonth = new System.Windows.Forms.Button();
@@ -46,7 +47,6 @@
             this.btnCombineFilesForCurrentDate = new System.Windows.Forms.Button();
             this.btnCombineAllFilesByDate = new System.Windows.Forms.Button();
             this.comboExistingBaseNames = new System.Windows.Forms.ComboBox();
-            this.calNextMonth = new DocumentScanner.UserControls.CustomSizeCalendar();
             this.grpAdvanceScanning.SuspendLayout();
             this.pnlNextMonthCalendarContainer.SuspendLayout();
             this.grpModifyCurrentDate.SuspendLayout();
@@ -257,6 +257,17 @@
             this.pnlNextMonthCalendarContainer.Size = new System.Drawing.Size(1149, 486);
             this.pnlNextMonthCalendarContainer.TabIndex = 15;
             // 
+            // calNextMonth
+            // 
+            this.calNextMonth.CalendarDimensions = new System.Drawing.Size(2, 1);
+            this.calNextMonth.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.calNextMonth.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.calNextMonth.Location = new System.Drawing.Point(0, 0);
+            this.calNextMonth.MaxSelectionCount = 1;
+            this.calNextMonth.Name = "calNextMonth";
+            this.calNextMonth.TabIndex = 0;
+            this.calNextMonth.DateChanged += new System.Windows.Forms.DateRangeEventHandler(this.calNextMonth_DateChanged);
+            // 
             // grpModifyCurrentDate
             // 
             this.grpModifyCurrentDate.AutoSize = true;
@@ -360,17 +371,6 @@
             this.comboExistingBaseNames.Size = new System.Drawing.Size(313, 32);
             this.comboExistingBaseNames.TabIndex = 19;
             this.comboExistingBaseNames.SelectedIndexChanged += new System.EventHandler(this.comboExistingBaseNames_SelectedIndexChanged);
-            // 
-            // calNextMonth
-            // 
-            this.calNextMonth.CalendarDimensions = new System.Drawing.Size(2, 1);
-            this.calNextMonth.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.calNextMonth.Font = new System.Drawing.Font("Microsoft Sans Serif", 14F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.calNextMonth.Location = new System.Drawing.Point(0, 0);
-            this.calNextMonth.MaxSelectionCount = 1;
-            this.calNextMonth.Name = "calNextMonth";
-            this.calNextMonth.TabIndex = 0;
-            this.calNextMonth.DateChanged += new System.Windows.Forms.DateRangeEventHandler(this.calNextMonth_DateChanged);
             // 
             // BatchScan
             // 

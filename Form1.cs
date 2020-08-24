@@ -9,6 +9,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing.Imaging;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -73,7 +74,8 @@ namespace DocumentScanner
                 Format = format;
             }
 
-            public override string ToString() => DateTime.Now.Date.ToString(Format);
+            public override string ToString() =>
+                DateTime.Now.Date.ToString(Format, CultureInfo.CurrentCulture);
         }
 
         private void LoadProject(SerializedMetadata docProject)
@@ -120,12 +122,13 @@ namespace DocumentScanner
 
         private void btnBatchDateProcessing_Click(object sender, EventArgs e)
         {
-            var frm = new frmConfigureZoom(_docMetadata.ImagePath);
-            if (DialogResult.OK != frm.ShowDialog()) return;
-
-            var imageCreator = frm.PreviewImageCreator;
-            var ctl = new BatchPageProcessing(_docMetadata, _docProject, imageCreator);
-            SetMainControl(ctl);
+            using (var frm = new frmConfigureZoom(_docMetadata.ImagePath))
+            {
+                if (DialogResult.OK != frm.ShowDialog()) return;
+                var imageCreator = frm.PreviewImageCreator;
+                var ctl = new BatchPageProcessing(_docMetadata, _docProject, imageCreator);
+                SetMainControl(ctl);
+            }
         }
 
         private void btnLoadProject_Click(object sender, EventArgs e)
@@ -133,7 +136,11 @@ namespace DocumentScanner
             var extension = DocumentMetadataSerializer.Extension;
             var filter = $"Document Project File|*{extension}";
             if (!TryChooseOpenFile(out string projectPath, filter)) return;
+            LoadProject(projectPath);
+        }
 
+        public void LoadProject(string projectPath)
+        {
             var doc = _docSerializer.LoadOrCreate(projectPath);
             LoadProject(doc);
         }
@@ -144,7 +151,7 @@ namespace DocumentScanner
         /// <param name="filter">Filter used by the <see cref="OpenFileDialog"></see> e.g. 'PDF File|*.pdf|TEXT file|*.txt"/></param>
         /// <param name="initialDirectory"></param>
         /// <returns>True if the user selected a valid path</returns>
-        private bool TryChooseOpenFile(out string path, string filter = null, string initialDirectory = null)
+        private static bool TryChooseOpenFile(out string path, string filter = null, string initialDirectory = null)
         {
             using (var openDialog = new OpenFileDialog()
             {
@@ -193,13 +200,47 @@ namespace DocumentScanner
 
             if (!this.fileScan.TryGetPath(out string outputPath)) return;
 
-            _scanCreator.Create()
-                .AddInputFiles(new InputFile(inputPdf))
-                .TiffCompression(TiffCompressionType.Auto)
-                .ForceOverwrite()
-                .NumScans(0)
-                .OutputPath(outputPath)
-                .Execute();
+            ConvertPdfToTiff(inputPdf, outputPath);
+        }
+
+        private void ConvertPdfToTiff(string pdfPath, string tiffPath)
+        {
+            var result = _scanCreator.Create()
+              .AddInputFiles(new InputFile(pdfPath))
+
+              .TiffCompression(TiffCompressionType.Auto)
+              .ForceOverwrite()
+              .NumScans(0)
+              .OutputPath(tiffPath)
+              .Execute();
+
+            // required to convert non-naps2-created PDFs into tiff files.
+            var genericImportModuleName = "generic-import";
+
+            ScanResults importResult = null;
+            if (result.Output.IndexOf(
+                genericImportModuleName,
+                StringComparison.OrdinalIgnoreCase) >= 0)
+            {
+                importResult = _scanCreator.Create()
+                    .Install(genericImportModuleName)
+                    .ShowOutput()
+                    .Execute();
+
+                ConvertPdfToTiff(pdfPath, tiffPath);
+                return;
+            }
+
+            if (!File.Exists(tiffPath))
+            {
+                MessageBox.Show(
+                    $"There was an error converting PDF to TIFF: \r\n"
+                    + $"---Command output---\r\n{result.Output}\r\n"
+                    + $"---Import output---\r\n{importResult.Output}",
+                    "Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error); ;
+            }
         }
 
         private void btnBatchScan_Click(object sender, EventArgs e)
@@ -252,8 +293,8 @@ namespace DocumentScanner
         public void Merge(IEnumerable<InputFile> inputFiles, string outputFile)
         {
             var inputExtensions = inputFiles
-                .Select(file => Path.GetExtension(file.Path).ToLower());
-            var outputExtension = Path.GetExtension(outputFile).ToLower();
+                .Select(file => Path.GetExtension(file.Path).ToUpperInvariant());
+            var outputExtension = Path.GetExtension(outputFile).ToUpperInvariant();
 
             // Mergers in best->worst order of speed/features
             var mergers = new (string[] supportedInputs, string[] supportedOutputs, Func<IFileMerger> factory)[]
@@ -289,12 +330,12 @@ namespace DocumentScanner
     /// <remarks>Much faster than <see cref="Naps2FileMerger"/>.</remarks>
     public class ItextPdfMerger : IFileMerger
     {
-        public static readonly string[] SupportedInputFiles = new[] { ".pdf" };
-        public static readonly string[] SupportedOutputFiles = new[] { ".pdf" };
+        public static readonly string[] SupportedInputFiles = new[] { ".PDF" };
+        public static readonly string[] SupportedOutputFiles = new[] { ".PDF" };
 
         public void Merge(IEnumerable<InputFile> inputFiles, string outputFile)
         {
-            if (!inputFiles.Any()) return;
+            if (inputFiles is null || !inputFiles.Any()) return;
 
             var output = new FileInfo(outputFile);
             output.SafeDelete();
@@ -302,16 +343,16 @@ namespace DocumentScanner
             Directory.CreateDirectory(output.Directory.FullName);
 
             using (var writer = new PdfWriter(outputFile))
+            using (var doc = new PdfDocument(writer))
             {
-                var doc = new PdfDocument(writer);
                 var merger = new iText.Kernel.Utils.PdfMerger(doc, true, false);
                 merger.SetCloseSourceDocuments(true);
                 foreach (InputFile inFile in inputFiles)
                 {
                     Debug.WriteLine("itext merging " + inFile);
                     using (var reader = new PdfReader(inFile.Path))
+                    using (var inDoc = new PdfDocument(reader))
                     {
-                        var inDoc = new PdfDocument(reader);
                         merger.Merge(
                             inDoc, inFile.StartPage ?? 1,
                             inFile.EndPage ?? inDoc.GetNumberOfPages());
@@ -336,8 +377,8 @@ namespace DocumentScanner
     /// </summary>
     public class Naps2FileMerger : IFileMerger
     {
-        public static readonly string[] SupportedInputFiles = new[] { ".pdf", ".tif", ".tiff" };
-        public static readonly string[] SupportedOutputFiles = new[] { ".pdf", ".tif", ".tiff" };
+        public static readonly string[] SupportedInputFiles = new[] { ".PDF", ".TIF", ".TIFF" };
+        public static readonly string[] SupportedOutputFiles = new[] { ".PDF", ".TIF", ".TIFF" };
 
         private readonly ScanFactory _scanCreator;
 
@@ -382,6 +423,11 @@ namespace DocumentScanner
         /// <returns>Returns the result of <see cref="fn"/> if <see cref="this"/> has a value, null otherwise.</returns>
         public static Nullable<T> ValueOp<T>(this Nullable<T> item, Func<T, T> fn) where T : struct
         {
+            if (fn is null)
+            {
+                throw new ArgumentNullException(nameof(fn));
+            }
+
             if (!item.HasValue) return null;
             return (T?)(fn(item.Value));
         }

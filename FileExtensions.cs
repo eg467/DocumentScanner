@@ -14,7 +14,7 @@ namespace DocumentScanner
     {
         public static void ShowInExplorer(this FileInfo fi)
         {
-            if (!fi.Exists)
+            if (fi?.Exists != true)
                 return;
             string argument = "/select, \"" + fi.FullName + "\"";
             Process.Start("explorer.exe", argument);
@@ -29,6 +29,11 @@ namespace DocumentScanner
 
         public static bool SafeDelete(this FileInfo file)
         {
+            if (file is null)
+            {
+                throw new ArgumentNullException(nameof(file));
+            }
+
             if (!file.Exists) return false;
             try
             {
@@ -52,6 +57,11 @@ namespace DocumentScanner
 
         public static void RecursiveDelete(this DirectoryInfo baseDir)
         {
+            if (baseDir is null)
+            {
+                throw new ArgumentNullException(nameof(baseDir));
+            }
+
             var exceptions = new List<Exception>();
             baseDir.RecursiveDeleteHelper(exceptions);
 
@@ -102,6 +112,11 @@ namespace DocumentScanner
         /// <returns>True if an existing file was chosen.</returns>
         public static bool TryGetPath(this OpenFileDialog dialog, out string path)
         {
+            if (dialog is null)
+            {
+                throw new ArgumentNullException(nameof(dialog));
+            }
+
             dialog.InitialDirectory = Settings.Default.LastAccessedDirectory;
             if (DialogResult.OK != dialog.ShowDialog())
             {
@@ -136,6 +151,11 @@ namespace DocumentScanner
         /// <returns>True to continue with the scanning operation, false to abort</returns>
         public static bool TryGetPath(this FolderBrowserDialog dialog, out string path)
         {
+            if (dialog is null)
+            {
+                throw new ArgumentNullException(nameof(dialog));
+            }
+
             if (Directory.Exists(Settings.Default.LastAccessedDirectory))
                 dialog.SelectedPath = Settings.Default.LastAccessedDirectory;
 
@@ -197,6 +217,11 @@ namespace DocumentScanner
         /// <returns>True to continue with the scanning operation, false to abort</returns>
         public static bool TryGetPath(this SaveFileDialog dialog, out string path, bool forceOverwrite = false)
         {
+            if (dialog is null)
+            {
+                throw new ArgumentNullException(nameof(dialog));
+            }
+
             dialog.InitialDirectory = Settings.Default.LastAccessedDirectory;
             path = DialogResult.OK == dialog.ShowDialog()
                     ? dialog.FileName

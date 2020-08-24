@@ -1,4 +1,5 @@
 ﻿using Newtonsoft.Json;
+using Org.BouncyCastle.Asn1.X509;
 using Org.BouncyCastle.Crypto;
 using System;
 using System.Collections;
@@ -71,10 +72,10 @@ namespace DocumentScanner
             while (i <= end)
             {
                 (int min, int? max) = BinaryRangeSearch(i);
-                var val = _values[min];
+                var val = min >= 0 ? _values[min] : _defaultValue;
                 var realStart = Math.Max(start, min);
 
-                if (!max.HasValue || max.Value >= end)
+                if (min == -1 || !max.HasValue || max.Value >= end)
                 {
                     AddRange(val, (realStart, end));
                     break;
@@ -102,6 +103,16 @@ namespace DocumentScanner
                 }
                 _values[index] = value;
             }
+        }
+
+        public void Set(int index, T value, bool forceRedundancy = true)
+        {
+            if (forceRedundancy)
+            {
+                _values[index] = value;
+                return;
+            }
+            this[index] = value;
         }
 
         public IEnumerable<KeyValuePair<int, T>> ExplicitlySetValues => _values;
@@ -157,7 +168,7 @@ namespace DocumentScanner
                 currentVal = valEnum.Current.Value;
             }
             // Avoid infinite enumerable
-            var maxItems = 1000;
+            var maxItems = 10000;
             while (start < maxItems)
             {
                 yield return new KeyValuePair<int, T>(start++, currentVal);
@@ -171,5 +182,8 @@ namespace DocumentScanner
     {
         public int Min { get; set; }
         public int Max { get; set; }
+        public int Count => Max - Min + 1;
+
+        public bool Contains(int value) => value >= Min && value <= Max;
     }
 }

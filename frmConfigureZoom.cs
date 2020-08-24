@@ -24,23 +24,24 @@ namespace DocumentScanner
             _imagePath = imagePath;
             _baseImage = Image.FromFile(_imagePath);
 
-            PreviewImageCreator = new PreviewImageCreator();
+            PreviewImageCreator = new PreviewImageCreator()
+            {
+                ScaleFactor = 1,
+                SourceRectangle = new Rectangle(Point.Empty, _baseImage.Size)
+            };
         }
 
         public frmConfigureZoom()
         {
             InitializeComponent();
-
             PreventCroppingRectFlicker();
+            RefreshCroppingRectangle();
         }
 
         private void PreventCroppingRectFlicker()
         {
             this.pnlOverlay.GetType()
-                .GetProperty(
-                    "DoubleBuffered",
-                    BindingFlags.Instance
-                        | BindingFlags.NonPublic)
+                .GetProperty("DoubleBuffered", BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(this.pnlOverlay, true, null);
         }
 
@@ -71,7 +72,7 @@ namespace DocumentScanner
         private Point? _zoomDragStart;
         private Point? _zoomDragEnd;
 
-        private Rectangle FormRectangle(Point p1, Point p2)
+        private static Rectangle FormRectangle(Point p1, Point p2)
         {
             var l = Math.Min(p1.X, p2.X);
             var r = Math.Max(p1.X, p2.X);
@@ -92,7 +93,7 @@ namespace DocumentScanner
             var boundingRect = new Rectangle(Point.Empty, this.picSource.Size);
             PreviewImageCreator.SourceRectangle =
                 FormRectangle(_zoomDragStart.Value, _zoomDragEnd.Value)
-                .BoundBy(boundingRect); ;
+                    .BoundBy(boundingRect); ;
 
             RefreshCroppingRectangle();
         }
@@ -152,7 +153,7 @@ namespace DocumentScanner
             Close();
         }
 
-        private int _pageIndex = 0;
+        private int _pageIndex;
 
         private int PageIndex
         {

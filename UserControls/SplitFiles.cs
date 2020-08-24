@@ -6,6 +6,7 @@ using System.IO;
 using DocumentScanner.NapsOptions;
 using System.Drawing.Imaging;
 using System.Collections.Generic;
+using System.Globalization;
 
 namespace DocumentScanner.UserControls
 {
@@ -74,7 +75,7 @@ namespace DocumentScanner.UserControls
             string CreateOutputPath(PageDateStatus stmtDate, bool includeCounter = true)
             {
                 var dateLabel = (stmtDate.HasDate)
-                    ? stmtDate.Date.Value.ToString("yyyy-MM-dd")
+                    ? stmtDate.Date.Value.ToString("yyyy-MM-dd", DateTimeFormatInfo.InvariantInfo)
                     : stmtDate.ToString();
                 var counter = includeCounter ? "-$(nn)" : "";
                 return Path.Combine(dir, $@"{sanitizedFilename}-{dateLabel}{counter}.pdf");

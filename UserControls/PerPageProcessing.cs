@@ -71,7 +71,7 @@ namespace DocumentScanner.UserControls
                 this.lblCurrentPage.Text = $"Page {_currentPage + 1} of {pageCount}";
 
                 // Refresh UI with initial date
-                CurrentDate = CurrentDate;
+                CurrentDate = DocData.PageDates[_currentPage].Date;
             }
         }
 
@@ -133,9 +133,9 @@ namespace DocumentScanner.UserControls
             }
             else
             {
-                this.lblPreviewDate.Text = "No Date";
+                this.lblPreviewDate.Text = Strings.UndatedPreviewText;
                 this.btnAdvanceStmtDate.Enabled = false;
-                this.btnAdvanceStmtDate.Text = $"Cannot Increment";
+                this.btnAdvanceStmtDate.Text = Strings.IncrementUndatedButtonText;
             }
         }
 

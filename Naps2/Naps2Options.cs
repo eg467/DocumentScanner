@@ -1,4 +1,5 @@
 ﻿using DocumentScanner.NapsOptions.Keys;
+using iText.Kernel.XMP.Options;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -89,7 +90,7 @@ namespace DocumentScanner.NapsOptions
         public string Path { get; }
         public int? StartPage { get; }
         public int? EndPage { get; }
-        public static string[] SliceableExtensions = new[] { ".tif", ".tiff", ".pdf" };
+        private static readonly string[] SliceableExtensions = new[] { ".tif", ".tiff", ".pdf" };
         private bool IsSliced => StartPage.HasValue || EndPage.HasValue;
 
         public InputFile(string path, int? startPage = null, int? endPage = null)
@@ -106,7 +107,9 @@ namespace DocumentScanner.NapsOptions
             }
         }
 
-        public static explicit operator InputFile(string filePath) =>
+        public static explicit operator InputFile(string filePath) => FromString(filePath);
+
+        public static InputFile FromString(string filePath) =>
             new InputFile(filePath, null, null);
 
         public override bool Equals(object obj) => Equals(obj as InputFile);
@@ -246,6 +249,10 @@ namespace DocumentScanner.NapsOptions
 
         public void Add(INapsOption option)
         {
+            if (option is null)
+            {
+                throw new ArgumentNullException(nameof(option));
+            }
             this[option.Key] = option;
         }
 
@@ -262,6 +269,11 @@ namespace DocumentScanner.NapsOptions
 
         public bool Remove(INapsOption option)
         {
+            if (option is null)
+            {
+                throw new ArgumentNullException(nameof(option));
+            }
+
             return Remove(option.Key);
         }
 

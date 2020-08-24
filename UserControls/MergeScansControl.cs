@@ -13,12 +13,19 @@ using iText.Kernel.Geom;
 using System.IO;
 using System.Drawing.Text;
 using System.Diagnostics;
+using System.Collections;
+using System.Globalization;
 
 namespace DocumentScanner.UserControls
 {
     public partial class MergeScansControl : UserControl
     {
         private readonly IFileMerger _merger;
+
+        /// <summary>
+        /// A character invalid in paths used to separate path from page range in text input.
+        /// </summary>
+        private const char _pathRangeSeparator = '|';
 
         public MergeScansControl()
         {
@@ -30,31 +37,42 @@ namespace DocumentScanner.UserControls
             _merger = pdfMerger ?? new ItextPdfMerger();
         }
 
-        public void Parse()
+        private InputFile ParseInputFilePathLine(string line)
         {
-            Match ParseLine(string f) =>
-                Regex.Match(f, @"^(?<path>[^\r\n\|]+)(\|(?<start>\d+):(?<end>\d+)?)?", RegexOptions.Multiline);
+            var separator = Regex.Escape(_pathRangeSeparator.ToString());
 
             int? ParseMatchInt(Match m, string name) =>
-                m.Groups[name].Success ? int.Parse(m.Groups[name].Value) : (int?)null;
+                m.Groups[name].Success ? int.Parse(m.Groups[name].Value, CultureInfo.InvariantCulture) : (int?)null;
 
-            var lines = this.txtInputFiles.Text.Split(
+            var match = Regex.Match(
+                line,
+                $@"^(?<path>[^\r\n{separator}]+)({separator}(?<start>\d+):(?<end>\d+)?)?",
+                RegexOptions.Multiline);
+
+            return match.Success
+                ? new InputFile(
+                    match.Groups["path"].Value,
+                    ParseMatchInt(match, "start"),
+                    ParseMatchInt(match, "end"))
+                : null;
+        }
+
+        private IEnumerable<InputFile> ParseInputLines() =>
+            GetInputLines()
+                .Select(ParseInputFilePathLine)
+                .Where(x => x != null);
+
+        private string[] GetInputLines() => this.txtInputFiles.Text.Split(
                     new[] { '\r', '\n' },
                     StringSplitOptions.RemoveEmptyEntries);
 
-            var inputFiles =
-                lines
-                    .Select(ParseLine)
-                    .Select(m =>
-                        new InputFile(
-                            m.Groups["path"].Value,
-                            ParseMatchInt(m, "start"),
-                            ParseMatchInt(m, "end")));
-
-            if (!CheckMissingFiles()) return;
+        public void Parse()
+        {
+            var inputFiles = ParseInputLines();
+            if (!CheckForMissingInputFiles(inputFiles)) return;
 
             var outputFile = this.txtOutputFile.Text;
-            CheckForExistingOutputFile();
+            if (!CheckForExistingOutputFile(outputFile)) return;
 
             try
             {
@@ -74,12 +92,10 @@ namespace DocumentScanner.UserControls
             // LOCAL HELPER FUNCTIONS
 
             // Return true to continue
-            bool CheckMissingFiles()
+            bool CheckForMissingInputFiles(IEnumerable<InputFile> files)
             {
-                var dneInputs = inputFiles
-                    .Where(f => !File.Exists(f.Path))
-                    .ToList();
-                var prompt = "Proceed even though the following files don't exist:\r\n";
+                var dneInputs = files.Where(f => !File.Exists(f.Path));
+                var prompt = "Proceed even though the following files don't exist? \r\n";
                 var dneInputLabel = string.Join("\r\n", dneInputs);
 
                 return !dneInputs.Any()
@@ -87,12 +103,12 @@ namespace DocumentScanner.UserControls
             }
 
             // Return true to continue
-            bool CheckForExistingOutputFile()
+            bool CheckForExistingOutputFile(string outputPath)
             {
-                var fi = new FileInfo(outputFile);
+                var fi = new FileInfo(outputPath);
                 if (fi.Exists)
                 {
-                    var confirmMsg = $"{outputFile} already exists, do you want to overwrite it?";
+                    var confirmMsg = $"{outputPath} already exists, do you want to overwrite it?";
                     if (!FileExtensions.ConfirmAction(confirmMsg)) return false;
 
                     if (!fi.SafeDelete())
@@ -116,6 +132,34 @@ namespace DocumentScanner.UserControls
         private void btnMerge_Click(object sender, EventArgs e)
         {
             Parse();
+        }
+
+        private void btnLoadFilesByPattern_Click(object sender, EventArgs e)
+        {
+            var pattern = this.txtGlob.Text;
+            var dir = System.IO.Path.GetDirectoryName(pattern);
+            var filenamePattern = System.IO.Path.GetFileName(pattern);
+
+            var files = Directory.GetFiles(
+                dir,
+                filenamePattern,
+                SearchOption.TopDirectoryOnly).ToList();
+
+            var existingInputPaths = ParseInputLines().Select(i => i.Path);
+
+            files
+                .Except(existingInputPaths, StringComparer.OrdinalIgnoreCase)
+                .Select(f => new InputFile(f))
+                .ForEach(AddLine);
+        }
+
+        private void AddLine(InputFile file)
+        {
+            this.txtInputFiles.Text += $"\r\n{file.Path}";
+            if (file.StartPage.HasValue || file.EndPage.HasValue)
+            {
+                this.txtInputFiles.Text += $"{_pathRangeSeparator}{file.StartPage}:{file.EndPage}";
+            }
         }
     }
 }

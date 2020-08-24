@@ -13,12 +13,13 @@ using System.Security.Cryptography.X509Certificates;
 using System.Drawing.Text;
 using DocumentScanner.NapsOptions;
 using System.Runtime.InteropServices;
+using System.Globalization;
 
 namespace DocumentScanner.UserControls
 {
     public partial class BatchScan : UserControl
     {
-        private string OutputExtension => ".pdf";
+        private static string OutputExtension => ".pdf";
 
         private string _outputDir;
 
@@ -42,10 +43,7 @@ namespace DocumentScanner.UserControls
                     var existingFileBaseNames =
                         Directory.GetFiles(OutputDir, $"*{OutputExtension}")
                          .Select(f =>
-                         {
-                             TryParseDateFromPath(f, out var fileInfo);
-                             return fileInfo.baseName;
-                         })
+                             TryParseDateFromPath(f, out var fileInfo) ? fileInfo.baseName : null)
                          .Where(x => x != null)
                          .Distinct();
 
@@ -90,7 +88,7 @@ namespace DocumentScanner.UserControls
 
         private void dateFormater_FormatChanged(object sender, EventArgs e)
         {
-            CurrentDate = CurrentDate;
+            CurrentDate = this.dateCurrentDocumentDate.GetDate();
         }
 
         public BatchScan()
@@ -148,7 +146,7 @@ namespace DocumentScanner.UserControls
             }
         }
 
-        private DateTime? AdvanceDate(DateTime? date, TimeSpan? amount = null, int months = 0)
+        private static DateTime? AdvanceDate(DateTime? date, TimeSpan? amount = null, int months = 0)
         {
             if (!date.HasValue) return null;
             return date.Value.Add(amount ?? TimeSpan.Zero).AddMonths(months);
@@ -190,18 +188,18 @@ namespace DocumentScanner.UserControls
                 : CurrentSanitizedBaseName;
 
             var dateLabel = date.HasValue
-                ? date.Value.ToString("yyyy-MM-dd")
+                ? date.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
                 : UndatedLabel;
             return $"{baseNameLabel}-{dateLabel}";
         }
 
-        private string ScanFilePath(DateTime? date, string baseName = null) =>
+        private string ScanFilePath(DateTime? date) =>
             $"{BaseFilename(date)}-$({new string('n', _counterLen)}){OutputExtension}";
 
-        private string LogFilename => "docscanner.log";
+        private static string LogFilename => "docscanner.log";
 
         private string GetOutputPathForDate(DateTime? date) =>
-            AbsolutePath(ScanFilePath(CurrentDate));
+            AbsolutePath(ScanFilePath(date));
 
         private string AbsolutePath(string relativePath) =>
             Path.Combine(OutputDir, relativePath);
@@ -209,7 +207,7 @@ namespace DocumentScanner.UserControls
         private string CombinedFilename(DateTime? date, string baseName = null) =>
             Path.Combine("combined", $"{BaseFilename(date, baseName)}{OutputExtension}");
 
-        public bool ViewMergedOutputOnCreation { get; set; } = false;
+        public bool ViewMergedOutputOnCreation { get; set; }
 
         private void ScanForDate(DateTime? date)
         {
@@ -252,14 +250,14 @@ namespace DocumentScanner.UserControls
                 .SubItems.Add(pageLabel);
         }
 
-        private int GetFilePageCount(string path)
+        private static int GetFilePageCount(string path)
         {
-            switch (Path.GetExtension(path).ToUpper())
+            switch (Path.GetExtension(path).ToUpper(CultureInfo.InvariantCulture))
             {
                 case ".PDF":
                     using (var documentReader = new iText.Kernel.Pdf.PdfReader(path))
+                    using (var doc = new iText.Kernel.Pdf.PdfDocument(documentReader))
                     {
-                        var doc = new iText.Kernel.Pdf.PdfDocument(documentReader);
                         return doc.GetNumberOfPages();
                     }
                 case ".TIFF":
@@ -404,10 +402,7 @@ namespace DocumentScanner.UserControls
             // Recombine files in case a portion of them were deleted.
             _lastFilesCreated
                 .Select(file =>
-                {
-                    TryParseDateFromPath(file, out var result);
-                    return result.date;
-                })
+                    TryParseDateFromPath(file, out var result) ? result.date : null)
                 .Distinct()
                 .ToList()
                 .ForEach(date => CombineFilesForDate(date));
